@@ -17,7 +17,7 @@ notes, writing cheatsheets, and building toward real projects.
 | 5 | Claude with Google Cloud Vertex AI | ⬜ | — |
 | 6 | Introduction to Model Context Protocol (MCP) | ⬜ | — |
 | 7 | Model Context Protocol: Advanced Topics | ⬜ | — |
-| 8 | Claude Code 101 *(optional)* | ⬜ | — |
+| 8 | Claude Code 101 *(optional)* | ✅ Done | [notes](./claude-code-101/) |
 | 9 | AI Fluency / AI Capabilities & Limitations *(optional)* | ⬜ | — |
 
 ## Repo structure
@@ -28,6 +28,7 @@ notes, writing cheatsheets, and building toward real projects.
 ## Certificates
 
 - ✅ Claude 101 — Anthropic
+- ✅ Claude Code 101 — Anthropic
 
 ---
 
