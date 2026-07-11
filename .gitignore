@@ -1,0 +1,7 @@
+# Secrets — never commit
+.env
+.env.*
+
+# Node
+node_modules/
+package-lock.json
