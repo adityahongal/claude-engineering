@@ -11,7 +11,7 @@ notes, writing cheatsheets, and building toward real projects.
 | # | Course | Status | Notes |
 |---|--------|--------|-------|
 | 1 | Claude 101 | ✅ Done | [notes](./01-claude-101/) |
-| 2 | Claude Platform 101 | 🟡 In progress | [notes](./02-platform-101/) |
+| 2 | Claude Platform 101 | ✅ Done | [notes](./02-platform-101/) |
 | 3 | Building with the Claude API (RAG, prompt engineering, tool use) | ⬜ | — |
 | 4 | Claude with Amazon Bedrock | ⬜ | — |
 | 5 | Claude with Google Cloud Vertex AI | ⬜ | — |
