@@ -1,35 +1,31 @@
-# Gen AI Learnings
+# Claude Engineering
 
-My journey from Frontend (React) development into Generative AI — learning to build
-with the Claude API, RAG, cloud AI, and agents.
+Notes and working code for building on the Claude API — picking a model, the agent loop,
+tool use, MCP, context management, and RAG.
 
-I'm working through [Anthropic's courses](https://anthropic.skilljar.com/), taking
-notes, writing cheatsheets, and building toward real projects.
+Each folder has the notes for one area plus code you can actually run. `cheatsheets/` has
+the short version of each topic, for when you just need to remember how something works.
+The notes lean on frontend analogies (props, state, the event loop) wherever the
+comparison actually holds up.
 
-## Progress
+## Coverage
 
-| # | Course | Status | Notes |
-|---|--------|--------|-------|
-| 1 | Claude 101 | ✅ Done | [notes](./01-claude-101/) |
-| 2 | Claude Platform 101 | ✅ Done | [notes](./02-platform-101/) |
-| 3 | Building with the Claude API (RAG, prompt engineering, tool use) | ⬜ | — |
-| 4 | Claude with Amazon Bedrock | ⬜ | — |
-| 5 | Claude with Google Cloud Vertex AI | ⬜ | — |
-| 6 | Introduction to Model Context Protocol (MCP) | ⬜ | — |
-| 7 | Model Context Protocol: Advanced Topics | ⬜ | — |
-| 8 | Claude Code 101 *(optional)* | ✅ Done | [notes](./claude-code-101/) |
-| 9 | AI Fluency / AI Capabilities & Limitations *(optional)* | ⬜ | — |
+| Area | Reference | Status |
+|---|---|---|
+| Claude fundamentals — prompts, context, LLM basics | [`01-claude-101/`](./01-claude-101/) | Documented |
+| Platform — models, agent loop, tools, skills, MCP, managed agents | [`02-platform-101/`](./02-platform-101/) | Documented |
+| Claude Code — the terminal coding agent | [`claude-code-101/`](./claude-code-101/) | Documented |
+| Building with the Claude API — prompt engineering, tool use, RAG | [`03-building-with-claude-api/`](./03-building-with-claude-api/) | In progress |
+| Claude on Amazon Bedrock | — | Planned |
+| Claude on Google Cloud Vertex AI | — | Planned |
+| Model Context Protocol — introduction and advanced topics | — | Planned |
 
-## Repo structure
+## Repository layout
 
-- `NN-course-name/` — detailed notes + code/exercises for each course
-- `cheatsheets/` — short 1-page summaries of key topics (RAG, prompt engineering, etc.)
+- `NN-topic-name/` — notes, gotchas, and example code for one area
+- `cheatsheets/` — one page per topic, condensed
+- Anything secret goes in a `.env` file, and those are git-ignored everywhere
 
-## Certificates
+## Certifications
 
-- ✅ Claude 101 — Anthropic
-- ✅ Claude Code 101 — Anthropic
-
----
-
-*Learning in public. Feedback welcome.*
+Anthropic Academy — Claude 101, Claude Code 101, Claude Platform 101.

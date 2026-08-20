@@ -1,0 +1,2 @@
+anthropic>=0.116
+python-dotenv>=1.0

@@ -14,7 +14,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 const message = await client.messages.create({
-  model: "claude-haiku-4-5",   // cheapest model — good for learning
+  model: "claude-haiku-4-5",   // cheapest tier — swap for claude-opus-5 when quality matters
   max_tokens: 1024,            // cap on the reply length (required)
   messages: [
     { role: "user", content: "Hello, Claude! Say hi in one sentence." },

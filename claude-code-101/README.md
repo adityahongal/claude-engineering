@@ -1,42 +1,36 @@
-# Claude Code 101 — Notes
+# Claude Code
 
-Course: [Claude Code 101](https://anthropic.skilljar.com/claude-code-101) · Status: ✅ Completed
+Anthropic's coding tool that lives in your terminal. It reads your codebase, makes
+changes, and runs commands — closer to an agent than a chat window.
 
-Claude Code is Anthropic's AI coding tool that lives in your terminal — it can read
-your codebase, make changes, run commands, and work like a coding agent (not just a chat).
+Source: Anthropic Academy — [Claude Code 101](https://anthropic.skilljar.com/claude-code-101)
 
-## What I learned
+## Core concepts
 
-- **Context & `/compact`** — the AI works within a limited context window. Keeping it
-  clean matters; `/compact` summarizes the conversation so you don't lose the thread
-  while freeing up space.
-- **Subagents (basics)** — you can spin off separate agents to handle focused tasks,
-  keeping the main conversation clean. Grasped the idea; want to go deeper later.
-- **`/commit-push-pr`** — a command that handles the git flow (commit → push → PR) for you.
-- **`CLAUDE.md`** — a project file that gives Claude persistent context/instructions
-  about your codebase, so you don't repeat yourself every session.
-- **Keeping the context window clean** — being deliberate about what's in context leads
-  to better, more focused output.
+- **Context and `/compact`** — it works inside a limited context window, so keeping that
+  window clean matters. `/compact` summarizes the conversation so you don't lose the
+  thread while freeing up space.
+- **Subagents** — spin off a separate agent for a focused task so the main conversation
+  stays clean.
+- **`/commit-push-pr`** — one command that handles the whole git flow (commit → push →
+  PR).
+- **`CLAUDE.md`** — a project file that gives Claude persistent context about your
+  codebase, so you're not repeating yourself every session.
+- **Being deliberate about context** — what you let into context directly changes how
+  focused the output is.
 
-## Key takeaways (from a frontend POV)
+## Frontend mental model
 
-- **Context window = component render budget.** Just like you don't dump everything into
-  one bloated component, you don't dump everything into the AI's context. Keep it lean.
-- **`CLAUDE.md` is like a config/README the AI actually reads.** Set it once, stop
-  repeating yourself — same idea as a shared eslint/prettier config for a team.
-- **Subagents feel like code-splitting.** Offload a focused task to a separate agent so
-  the main thread stays fast and clean.
-- **It's an agent, not autocomplete.** You direct it like a junior dev — clear task,
-  clear context — not like a search box.
+- **The context window is a render budget.** You wouldn't dump everything into one
+  bloated component; same idea here. Keep it lean.
+- **`CLAUDE.md` is config the agent actually reads.** Set it once and stop repeating
+  yourself — same role a shared ESLint or Prettier config plays for a team.
+- **Subagents feel like code splitting.** Hand a focused task to a separate agent so the
+  main thread stays fast.
+- **It's an agent, not autocomplete.** You direct it the way you'd brief a teammate —
+  clear task, clear context — not the way you'd use a search box.
 
-## Still to go deep on
+## Related topics
 
-- **Skills** — reusable capabilities/instructions for the agent.
-- **MCP (Model Context Protocol)** — connecting the agent to external tools/data.
-- **Hooks** — automating actions around the agent's workflow.
-
-_(These come up properly in later courses — noted here to revisit.)_
-
-## Questions I still have
-
-- _(add anything unclear to revisit later)_
+Skills, MCP, and hooks show up here but get covered properly in
+[`../02-platform-101/`](../02-platform-101/) and the MCP modules.

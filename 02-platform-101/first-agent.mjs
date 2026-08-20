@@ -23,7 +23,7 @@ const environment = await client.beta.environments.create({
 // Agent = the config. model / system / tools live HERE, never on the session.
 const agent = await client.beta.agents.create({
   name: "My First Agent",
-  model: "claude-haiku-4-5",                     // cheap tier for learning
+  model: "claude-haiku-4-5",                     // cheapest tier — swap for claude-opus-5 when quality matters
   system: "You are a helpful assistant.",
   tools: [{ type: "agent_toolset_20260401" }],   // built-in bash/read/write/search/etc.
 });

@@ -1,9 +1,9 @@
-# Claude Platform 101 — Notes
+# Claude Platform
 
-Course: [Claude Platform 101](https://anthropic.skilljar.com/claude-platform-101) · Status: ✅ Done
+The developer on-ramp to the Claude API: model tiers, the agent loop, tool use, skills,
+MCP, context management, and managed agents.
 
-The developer on-ramp — learning to build with the Claude API: models, the agent loop,
-tools, skills, MCP, context management, and managed agents.
+Source: Anthropic Academy — [Claude Platform 101](https://anthropic.skilljar.com/claude-platform-101)
 
 ## Model tiers & use cases
 - Haiku (fastest/cheapest) → Sonnet (balanced) → Opus (most capable Opus-tier) → Fable (most capable overall) → Mythos (restricted access).
@@ -50,12 +50,13 @@ tools, skills, MCP, context management, and managed agents.
 - **Also learned:** outcomes (state what "done" looks like), multi-agent coordination, working in parallel.
 - See [`first-agent.mjs`](./first-agent.mjs) — the stub agent (not yet run, needs credits).
 
-## Key takeaways (frontend POV)
+## Frontend mental model
 - The agent loop is just an event loop: call → check state → handle side effects → call again.
 - Tools are typed contracts — a JSON schema is basically a function signature (like typing props).
 - Stateless API = I own the state, like the frontend re-sending state each render.
 - Managed agents = the "hosted/serverless" version: Anthropic runs the loop + container, I just declare the agent.
 - Stub-first = same as stubbing a component before wiring real data — prove the plumbing, then build up.
 
-## Questions I still have
-- Advanced MCP topics — pending (separate course).
+## Related topics
+- Advanced MCP — covered in a dedicated module.
+- Building on this API surface — see [`../03-building-with-claude-api/`](../03-building-with-claude-api/).
