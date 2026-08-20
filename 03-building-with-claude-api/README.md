@@ -63,6 +63,22 @@ small on purpose to keep costs predictable.
 `load_dotenv()` reads `.env` into the environment first, so the key never has to appear
 anywhere in the code.
 
+## Frontend mental model
+
+- **The SDK is axios, not `fetch`.** `anthropic.Anthropic()` wraps the same HTTP call you
+  could write by hand — it just handles auth headers, retries, and parsing so you don't
+  have to. Same tradeoff as reaching for axios over raw `fetch`.
+- **Reading `content` is like rendering `children`.** You don't assume `children` is a
+  single string and render it blindly; you check what each child actually is first. Same
+  here — walk the list, check each block's `type`, handle the ones you care about.
+- **A stateless API means you own the state.** Every call resends the full conversation,
+  the same way a component re-receives all its props on every render. Nothing persists on
+  the server between calls, so the `messages` list is your state — if you don't send it,
+  it didn't happen.
+- **The key needs a backend, for the same reason `.env` doesn't protect a React app.**
+  Anything shipped to the browser is readable in DevTools. The call has to originate from
+  a server you control.
+
 ## Caveats
 
 - **The API is stateless.** Every call resends the whole conversation, so context *and*
