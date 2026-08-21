@@ -56,9 +56,7 @@ One folder per course module, filled in as each is worked through.
 `.env.example` is the key template — copy it to `.env`, which is never committed.
 Claude Code is covered separately in [`../claude-code-101/`](../claude-code-101/).
 
-| File | What it covers |
-|---|---|
-| `api-access/first_call.py` | Building the client, `messages.create`, reading content blocks, handling errors |
+Each folder carries its own `README.md` with the notes and gotchas for that module.
 
 ## Notes
 
