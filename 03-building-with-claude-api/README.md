@@ -23,9 +23,12 @@ pip install -r requirements.txt   # once, or when deps change
 Then, in this folder:
 
 ```bash
-cp .env.example .env      # then put your key in .env
-python first_call.py
+cp .env.example .env              # then put your key in .env
+python api-access/first_call.py
 ```
+
+One `.env` covers the whole module — `load_dotenv()` searches the current directory and
+walks up, so scripts in the sub-folders find it without their own copy.
 
 `source .venv/bin/activate` only applies to the terminal tab you run it in — open a new
 tab and you'll need it again. Your prompt shows `(.venv)` when it's active; `deactivate`
@@ -35,15 +38,27 @@ exits. `.venv/` is git-ignored and disposable — delete it and rebuild from
 `.env` is git-ignored too. The key has to stay server-side — see
 [`../cheatsheets/api-key-security.md`](../cheatsheets/api-key-security.md).
 
-## Files
+## Layout
+
+One folder per course module, filled in as each is worked through.
+
+| Folder | Covers |
+|---|---|
+| `api-access/` | Keys, requests, multi-turn, system prompts, streaming, structured data |
+| `prompt-evaluation/` | Eval workflow, test datasets, model-based and code-based grading |
+| `prompt-engineering/` | Clear and direct, specificity, XML tags, examples |
+| `tool-use/` | Tool functions and schemas, message blocks, multi-turn tool loops |
+| `rag/` | Chunking, embeddings, the RAG flow, BM25, multi-index retrieval |
+| `claude-features/` | Extended thinking, images, PDFs, citations, prompt caching |
+| `mcp/` | MCP clients and servers, tools, resources, prompts |
+| `agents-workflows/` | Parallelization, chaining, routing, agents vs workflows |
+
+`.env.example` is the key template — copy it to `.env`, which is never committed.
+Claude Code is covered separately in [`../claude-code-101/`](../claude-code-101/).
 
 | File | What it covers |
 |---|---|
-| `first_call.py` | Building the client, `messages.create`, reading content blocks, handling errors |
-| `.env.example` | Template for the key — copy to `.env`, which is never committed |
-
-Prompt engineering, tool use, embeddings, and RAG each get their own module alongside
-this one.
+| `api-access/first_call.py` | Building the client, `messages.create`, reading content blocks, handling errors |
 
 ## Notes
 

@@ -13,7 +13,7 @@ import sys
 import anthropic
 from dotenv import load_dotenv
 
-MODEL = "claude-haiku-4-5"  # cheapest tier — swap for claude-opus-5 when quality matters
+MODEL = "claude-sonnet-5"  # matches the course; claude-haiku-4-5 is ~3x cheaper if needed
 MAX_TOKENS = 1024  # deliberately small to bound cost while learning
 
 
