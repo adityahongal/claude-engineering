@@ -24,6 +24,8 @@ comparison actually holds up.
 
 - `NN-topic-name/` — notes, gotchas, and example code for one area
 - `cheatsheets/` — one page per topic, condensed
+- `requirements.txt` — Python deps, shared by every module; install into a `.venv` at this
+  root (`python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`)
 - Anything secret goes in a `.env` file, and those are git-ignored everywhere
 
 ## Certifications

@@ -9,16 +9,30 @@ Source: Anthropic Academy — [Building with the Claude API](https://anthropic.s
 
 ## Setup
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+The virtual environment and `requirements.txt` live at the **repo root**, shared by every
+Python module here — so this is a one-time setup, not per-folder.
 
+From the repo root:
+
+```bash
+python3 -m venv .venv             # once, ever
+source .venv/bin/activate         # every new terminal session
+pip install -r requirements.txt   # once, or when deps change
+```
+
+Then, in this folder:
+
+```bash
 cp .env.example .env      # then put your key in .env
 python first_call.py
 ```
 
-`.env` is git-ignored. The key has to stay server-side — see
+`source .venv/bin/activate` only applies to the terminal tab you run it in — open a new
+tab and you'll need it again. Your prompt shows `(.venv)` when it's active; `deactivate`
+exits. `.venv/` is git-ignored and disposable — delete it and rebuild from
+`requirements.txt` any time.
+
+`.env` is git-ignored too. The key has to stay server-side — see
 [`../cheatsheets/api-key-security.md`](../cheatsheets/api-key-security.md).
 
 ## Files
@@ -26,6 +40,7 @@ python first_call.py
 | File | What it covers |
 |---|---|
 | `first_call.py` | Building the client, `messages.create`, reading content blocks, handling errors |
+| `.env.example` | Template for the key — copy to `.env`, which is never committed |
 
 Prompt engineering, tool use, embeddings, and RAG each get their own module alongside
 this one.
