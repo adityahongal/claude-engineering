@@ -89,6 +89,29 @@ For an optional system prompt, default the parameter to `anthropic.omit` rather 
 `None`. `None` is sent as a literal JSON `null`; `omit` leaves the key out of the request
 entirely. Two different requests.
 
+**Temperature — and why it no longer applies to Claude**
+
+Temperature controls the sampling step: near `0` the highest-probability token is picked
+almost every time; near `1` probability is spread wider and output varies. Low for
+factual work and extraction, high for brainstorming and creative writing.
+
+It is on its way out of this API on two fronts:
+
+- **The Python SDK removed it.** In `anthropic` 1.0.0, `temperature`, `top_p` and `top_k`
+  are gone from `messages.create()` — passing one raises `TypeError` locally, before any
+  request. `extra_body={"temperature": ...}` still puts it in the JSON body.
+- **Current models reject it.** `claude-sonnet-5`, `claude-opus-5` and the 4.7/4.8 family
+  return a 400. `claude-haiku-4-5` still accepts it.
+
+Steer current Claude models with prompting, or with `output_config.effort` where the
+model supports it. The concept still matters everywhere else — OpenAI, Gemini and every
+LangChain wrapper take a `temperature` argument.
+
+Demonstrating it needs a **comparison, not a chat loop**: the same prompt run several
+times at `0.0` and again at `1.0`. And each run needs a **fresh message list** — reuse one
+and the earlier answers sit in the history, so Claude avoids repeating itself. That looks
+like temperature working when it isn't.
+
 **Reading the response**
 
 ```
@@ -187,6 +210,15 @@ whatever the server said.
 - **`system=None` is not the same as omitting it.** `None` goes on the wire as JSON `null`;
   `anthropic.omit` leaves the key out. A default only matters when a call actually falls
   through to it — which is why code that always passes a value never reveals the problem.
+- **A `TypeError` from the SDK is not an API error.** `temperature` was removed from
+  `messages.create()` in SDK 1.0.0, so it fails locally before any request. Switching
+  models can't fix a parameter the client library no longer has.
+- **`temperature=0` was never a guarantee of identical output**, on any model or provider.
+  It makes sampling near-deterministic, not deterministic. Don't build retry logic that
+  assumes otherwise.
+- **Reusing one message list across comparison runs invalidates the comparison.** Prior
+  answers in the history make Claude avoid repeating itself, which is easy to mistake for
+  the parameter you're testing.
 
 ## Files
 
@@ -200,6 +232,9 @@ whatever the server said.
   clean handling of Ctrl+C / Ctrl+D.
 - `system_prompts.py` — the chat loop with a system prompt steering it, passed as a
   top-level parameter on every call.
+- `temperature_haiku_model_only.py` — one prompt run three times at `0.0` and three times
+  at `1.0`. Uses `claude-haiku-4-5` and `extra_body`, since the SDK dropped the parameter
+  and current models reject it — the deviation is explained in the file's docstring.
 
 The helpers are duplicated across the last two files rather than shared. Each file stays
 readable end to end, which matters more here than avoiding repetition.
