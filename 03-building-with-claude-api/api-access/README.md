@@ -65,6 +65,30 @@ raises `KeyboardInterrupt` and exits through a traceback. A quit word plus
 Where the `try` sits is a design decision: wrapping the whole loop means one transient
 error ends the session, while catching inside the loop lets it recover and carry on.
 
+**System prompts**
+
+A system prompt shapes how Claude answers — tone, role, what it should and shouldn't do.
+It's a plain string passed as a **top-level parameter** on `create()`:
+
+```python
+client.messages.create(
+    model=MODEL, max_tokens=MAX_TOKENS,
+    messages=messages,
+    system=system_prompt,      # alongside messages, not inside it
+)
+```
+
+It is **not** a role in the `messages` list. Anthropic has exactly two roles, `user` and
+`assistant`. Most tutorials online are OpenAI-shaped, where `system` *is* a message role —
+that difference is the usual source of confusion.
+
+In a loop, define it once above the loop. It's constant for the session, but the API is
+stateless, so it gets re-sent with every request just like the history does.
+
+For an optional system prompt, default the parameter to `anthropic.omit` rather than
+`None`. `None` is sent as a literal JSON `null`; `omit` leaves the key out of the request
+entirely. Two different requests.
+
 **Reading the response**
 
 ```
@@ -158,6 +182,11 @@ whatever the server said.
   exit code 0.
 - **Comments go stale when code moves.** "Add the initial user question" stops being true
   the moment it's inside a loop. Re-read the comments after any restructure.
+- **`system` is a top-level parameter, not a message role.** Only `user` and `assistant`
+  exist in `messages`. OpenAI-shaped tutorials will tell you otherwise.
+- **`system=None` is not the same as omitting it.** `None` goes on the wire as JSON `null`;
+  `anthropic.omit` leaves the key out. A default only matters when a call actually falls
+  through to it — which is why code that always passes a value never reveals the problem.
 
 ## Files
 
@@ -169,6 +198,8 @@ whatever the server said.
   `add_assistant_message` helpers maintaining the list, resent in full each call.
 - `simple_chatbot.py` — the same exchange in a `while True:` loop, with a quit word and
   clean handling of Ctrl+C / Ctrl+D.
+- `system_prompts.py` — the chat loop with a system prompt steering it, passed as a
+  top-level parameter on every call.
 
 The helpers are duplicated across the last two files rather than shared. Each file stays
 readable end to end, which matters more here than avoiding repetition.
