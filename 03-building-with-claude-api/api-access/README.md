@@ -143,6 +143,48 @@ the function that streams is also the function that prints. Whatever called it m
 printing the return value, or everything appears twice. Error handling is unaffected —
 the request fires on entering the `with`, so failures surface through the same handlers.
 
+**Structured data**
+
+Asked for JSON, Claude tends to wrap it in a markdown fence and introduce it. Two ways to
+get just the data:
+
+*The lesson's way — prefill plus a stop sequence:*
+
+```python
+add_user_message(messages, "Generate a very short event bridge rule as json")
+add_assistant_message(messages, "```json")            # a seed you write, not a reply
+text = chat(client, messages, stop_sequences=["```"])  # ONE call
+```
+
+The trick is ending the list on a deliberately unfinished **assistant** turn. Claude sees
+itself mid-sentence with a code fence already open and continues with JSON rather than a
+preamble; the stop sequence cuts generation when it tries to close the fence.
+
+**This returns a 400 on `claude-sonnet-5`, `claude-opus-5` and the 4.6–4.8 family** —
+assistant prefill was removed. `claude-haiku-4-5` still accepts it.
+
+*The current way — constrain generation to a schema:*
+
+```python
+class EventBridgeRule(BaseModel):
+    source: list[str]
+    detail: dict
+
+response = client.messages.parse(
+    model=MODEL, max_tokens=MAX_TOKENS,
+    messages=messages,
+    output_format=EventBridgeRule,
+)
+rule = response.parsed_output      # a validated EventBridgeRule, not a string
+```
+
+The schema travels with the request and the reply is validated into the model. Nothing to
+strip, nothing to parse, and the wrong shape can't be produced in the first place —
+validation moves from *after* generation to *during* it.
+
+A JSON key like `detail-type` isn't a valid Python identifier; it needs
+`Field(alias="detail-type")` on the model.
+
 **Reading the response**
 
 ```
@@ -256,6 +298,14 @@ whatever the server said.
   won't show it; it's assigned in `__init__`.
 - **Streaming moves printing into the streaming function**, so the caller must stop
   printing the return value or every response appears twice.
+- **A prefill is something you write, not something you store.** `add_assistant_message`
+  serves both purposes, which makes it easy to call it in the wrong order — the prefill
+  must go in *before* the request it shapes, and there is only one request.
+- **Assistant prefill returns a 400 on current models.** Removed on Sonnet 5, Opus 5 and
+  the 4.6–4.8 family. Use `output_format` with a Pydantic model instead.
+- **`while True:` with no `input()` and no `break` is a runaway.** It calls the API as fast
+  as it can with a history that grows every pass, so each call costs more than the last.
+  A billing error hides it; credits reveal it.
 
 ## Files
 
@@ -274,6 +324,8 @@ whatever the server said.
 - `temperature_haiku_model_only.py` — one prompt run three times at `0.0` and three times
   at `1.0`. Uses `claude-haiku-4-5` and `extra_body`, since the SDK dropped the parameter
   and current models reject it — the deviation is explained in the file's docstring.
+- `structured_data.py` — both routes side by side: prefill plus `stop_sequences` on Haiku,
+  and `messages.parse()` with a Pydantic model on Sonnet.
 
 The helpers are duplicated across the last two files rather than shared. Each file stays
 readable end to end, which matters more here than avoiding repetition.
