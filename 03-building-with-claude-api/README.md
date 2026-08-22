@@ -57,6 +57,8 @@ One folder per course module, filled in as each is worked through.
 Claude Code is covered separately in [`../claude-code-101/`](../claude-code-101/).
 
 Each folder carries its own `README.md` with the notes and gotchas for that module.
+Condensed one-page summaries live in [`../cheatsheets/`](../cheatsheets/) — the Messages
+API is covered in [`messages-api.md`](../cheatsheets/messages-api.md).
 
 ## Notes
 
