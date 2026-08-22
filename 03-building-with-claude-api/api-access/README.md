@@ -52,6 +52,19 @@ Helpers that append to the list can return `None` and mutate in place — a list
 by reference, so the function is changing the caller's object, not a copy. Rebinding
 (`messages = messages + [msg]`) looks equivalent and silently isn't.
 
+**Turning it into a chat loop**
+
+A chatbot is the same exchange wrapped in `while True:` — read input, append, send the
+whole history, print, append the reply. One API call per turn; two means a leftover from
+somewhere.
+
+Give it a way out. `while True:` with no `break` can only be stopped with Ctrl+C, which
+raises `KeyboardInterrupt` and exits through a traceback. A quit word plus
+`except (KeyboardInterrupt, EOFError)` covers both the deliberate exit and Ctrl+D.
+
+Where the `try` sits is a design decision: wrapping the whole loop means one transient
+error ends the session, while catching inside the loop lets it recover and carry on.
+
 **Reading the response**
 
 ```
@@ -137,6 +150,14 @@ whatever the server said.
   `messages = messages + [x]` rebinds a local name and the caller sees nothing.
 - **Watch out for `message` next to `messages`.** One letter apart, completely different
   things — the response versus the history. Name the response `response`.
+- **Adapting a script into a loop leaves scaffolding behind.** A second `chat()` call that
+  made sense as "turn 2" becomes a duplicate request on every iteration — double the cost,
+  and its reply never reaches the history. Count the API calls per turn: it should be one.
+- **`while True:` needs an exit.** Without a `break`, Ctrl+C raises `KeyboardInterrupt` and
+  the program dies through a traceback. Catch it (and `EOFError` for Ctrl+D) to leave at
+  exit code 0.
+- **Comments go stale when code moves.** "Add the initial user question" stops being true
+  the moment it's inside a loop. Re-read the comments after any restructure.
 
 ## Files
 
@@ -146,6 +167,11 @@ whatever the server said.
   filtering, guard clause and the error chain.
 - `multi_turn_conversations.py` — a two-turn conversation: `add_user_message` /
   `add_assistant_message` helpers maintaining the list, resent in full each call.
+- `simple_chatbot.py` — the same exchange in a `while True:` loop, with a quit word and
+  clean handling of Ctrl+C / Ctrl+D.
+
+The helpers are duplicated across the last two files rather than shared. Each file stays
+readable end to end, which matters more here than avoiding repetition.
 
 ## Run
 
