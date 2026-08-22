@@ -29,6 +29,29 @@ mid-sentence and `stop_reason` comes back as `max_tokens`.
 The API is stateless, so this list is the entire memory of the conversation. Nothing is
 stored server-side between calls — whatever you don't resend, Claude never knew.
 
+**Multi-turn conversations**
+
+Because nothing is stored, a "conversation" is a list you maintain and resend in full:
+
+```
+messages = []
+  append {"role": "user", ...}      →  send the WHOLE list  →  reply
+  append {"role": "assistant", ...}
+  append {"role": "user", ...}      →  send the WHOLE list  →  reply with context
+```
+
+Claude never remembers — it re-reads the transcript you hand it on every call. Turn 10
+resends turns 1–9, so context and cost grow with every message. This is where the
+"pay on the way in and on the way out" idea stops being abstract.
+
+Appending the reply as a plain string is fine while responses are text-only. Appending
+`response.content` (the block list) instead preserves structure, and becomes necessary
+once tool use enters the picture.
+
+Helpers that append to the list can return `None` and mutate in place — a list is passed
+by reference, so the function is changing the caller's object, not a copy. Rebinding
+(`messages = messages + [msg]`) looks equivalent and silently isn't.
+
 **Reading the response**
 
 ```
@@ -104,13 +127,25 @@ whatever the server said.
   are missing. Auth failures are 401. Read the status before assuming the key is wrong.
 - Anything at **module level runs on import**, not just on run. `if __name__ == "__main__":`
   guards only the `main()` call — not other top-level lines.
+- **Forget to append the assistant reply and Claude gets amnesia.** No error, no warning —
+  it just answers the follow-up as though it were the first question. A missing append is
+  almost always the cause.
+- **Iterate `response.content`, not the response.** The response is a Pydantic model, so
+  looping over it yields `(field_name, value)` tuples and `block.type` raises
+  `AttributeError`.
+- **Mutate, don't rebind.** `messages.append(x)` changes the caller's list;
+  `messages = messages + [x]` rebinds a local name and the caller sees nothing.
+- **Watch out for `message` next to `messages`.** One letter apart, completely different
+  things — the response versus the history. Name the response `response`.
 
 ## Files
 
 - `first_call.py` — reference version: `main()`, guard, block filtering, the full `except`
   chain. The shape to copy from.
-- `making_a_request.py` — course follow-along, with the lesson notes kept inline and the
-  original exploration commented above.
+- `making_a_request.py` — a single request: client setup, `messages.create`, block
+  filtering, guard clause and the error chain.
+- `multi_turn_conversations.py` — a two-turn conversation: `add_user_message` /
+  `add_assistant_message` helpers maintaining the list, resent in full each call.
 
 ## Run
 
