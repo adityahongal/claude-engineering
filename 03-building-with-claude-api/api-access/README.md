@@ -112,6 +112,37 @@ times at `0.0` and again at `1.0`. And each run needs a **fresh message list** �
 and the earlier answers sit in the history, so Claude avoids repeating itself. That looks
 like temperature working when it isn't.
 
+**Response streaming**
+
+`client.messages.stream(...)` replaces `create(...)` and is a **context manager**, so it
+needs `with` — there's an HTTP connection held open for the duration, and the block
+guarantees it closes even if something throws part-way through.
+
+```python
+with client.messages.stream(model=MODEL, max_tokens=MAX_TOKENS, messages=messages) as stream:
+    for text in stream.text_stream:
+        print(text, end="", flush=True)
+    return stream.get_final_text()
+```
+
+`stream.text_stream` is a **generator**: each iteration yields the next chunk and pauses.
+It's a convenience layer over the raw event types (`MessageStart`, `ContentBlockDelta`,
+`MessageStop`, …), filtering them down to just the text deltas. Iterate the stream itself
+if you need the raw events.
+
+Both `print` arguments matter. `end=""` stops a newline after every chunk; `flush=True`
+pushes each one to the terminal immediately — without it Python buffers stdout and the
+whole response appears at once, which defeats the point.
+
+`get_final_text()` returns the assembled string once the stream finishes, which is what
+you append to the history. `get_final_message()` gives the whole `Message` instead, with
+`stop_reason` and `usage`.
+
+Streaming changes the structure of the code: output has to happen **as chunks arrive**, so
+the function that streams is also the function that prints. Whatever called it must stop
+printing the return value, or everything appears twice. Error handling is unaffected —
+the request fires on entering the `with`, so failures surface through the same handlers.
+
 **Reading the response**
 
 ```
@@ -219,6 +250,12 @@ whatever the server said.
 - **Reusing one message list across comparison runs invalidates the comparison.** Prior
   answers in the history make Claude avoid repeating itself, which is easy to mistake for
   the parameter you're testing.
+- **`flush=True` is not optional when streaming.** Python buffers stdout, so without it the
+  chunks accumulate and print all at once at the end — looking exactly like no streaming.
+- **`text_stream` is an instance attribute, not a class one.** Inspecting `MessageStream`
+  won't show it; it's assigned in `__init__`.
+- **Streaming moves printing into the streaming function**, so the caller must stop
+  printing the return value or every response appears twice.
 
 ## Files
 
@@ -232,6 +269,8 @@ whatever the server said.
   clean handling of Ctrl+C / Ctrl+D.
 - `system_prompts.py` — the chat loop with a system prompt steering it, passed as a
   top-level parameter on every call.
+- `streaming_response.py` — the chat loop with `messages.stream()`, printing chunks as
+  they arrive and appending the assembled text to the history.
 - `temperature_haiku_model_only.py` — one prompt run three times at `0.0` and three times
   at `1.0`. Uses `claude-haiku-4-5` and `extra_body`, since the SDK dropped the parameter
   and current models reject it — the deviation is explained in the file's docstring.
