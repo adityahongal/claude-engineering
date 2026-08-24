@@ -168,6 +168,51 @@ Python function with commentary. Character count is a poor guide, because code a
 tokenize denser than prose. `UsageTracker` now counts `stop_reason == "max_tokens"` and
 warns, so it can't pass unnoticed.
 
+**Model-based grading**
+
+Three ways to grade: **code** (programmatic checks — length, valid syntax, forbidden
+words), **model** (a second Claude call judging quality), **human** (most flexible, least
+scalable). Format and syntax suit code graders; "did it actually address the task" suits a
+model grader.
+
+Ask for strengths and weaknesses **alongside** the score. Without them models drift toward
+a safe 6 for everything; making the grader justify itself first spreads the scores out.
+
+Use two models for two roles:
+
+```python
+MODEL        = "claude-sonnet-5"     # answers — the thing being evaluated
+GRADER_MODEL = "claude-haiku-4-5"    # grades — simpler job, ~1/3 the cost
+```
+
+`MODEL` must stay fixed across runs or the scores aren't comparable — you'd be evaluating
+a different model, not a different prompt. A single shared constant silently changes both.
+
+Grade with a **schema**, not by parsing prose. The course's prefill route raised
+`JSONDecodeError` intermittently on this dataset: the reasoning quotes regex, every
+backslash has to be escaped correctly in JSON, and one miss kills the parse. A nested code
+fence in the reasoning also trips `stop_sequences=["```"]` and truncates mid-object.
+`score: int` in the schema pins the scale too — the prose version returned 6, 7.5 and 8
+across three calls.
+
+**Your noise floor**
+
+Run the eval twice **without changing anything** before trusting any comparison. Two
+identical runs here produced:
+
+```
+run 1: average 7.000
+run 2: average 7.333    scores [6, 8, 8]
+```
+
+One score moved by a point; on a three-row dataset that's 0.333 of the average. So any
+prompt change scoring less than ~0.33 better is indistinguishable from noise — 7.0 → 7.33
+tells you nothing at all.
+
+Two sources stack: the answer varies run to run, and the grade of a given answer varies
+too. More rows is the fix — each score is worth 1/n of the average, so 30 rows gives ten
+times the resolution of 3.
+
 ## Frontend mental model
 
 - **The eval dataset is a test suite.** Fixed inputs you re-run after every change.
@@ -197,6 +242,16 @@ warns, so it can't pass unnoticed.
 - **`json.dump` can't write Pydantic objects** — `TypeError: Object of type Task is not
   JSON serializable`. Call `model_dump()` first. Objects in the middle, plain dicts at the
   edges.
+- **Measure the noise floor before reading any improvement.** Run the eval twice unchanged.
+  Whatever the averages differ by is the smallest change that means anything.
+- **A missing `f` prefix fails silently and is the worst bug in the module.** `{task}` and
+  `{solution}` go through as literal text, the grader reviews placeholders, and it still
+  returns a confident score. Nothing errors; the baseline is simply fiction.
+- **Intermittent is worse than broken.** The prefill grader passed six consecutive calls
+  while being fundamentally unreliable. A schema removes the failure mode instead of
+  lowering its odds.
+- **One shared `MODEL` constant for answering and grading changes what you're measuring**
+  when you switch it for cost.
 - **Check `stop_reason` before trusting an eval score.** `max_tokens` means the answer was
   cut off; grading it measures the ceiling, not the prompt.
 - **Adding a parameter to a signature isn't the same as passing it at the call site.**
@@ -220,6 +275,9 @@ warns, so it can't pass unnoticed.
   for pricing a run before making it, and a truncation warning.
 - `running_the_eval.py` — reads the dataset, runs every task through the prompt, writes
   the answers to `answers.json` (git-ignored) for grading to pick up.
+- `model_based_grading.py` — the full loop: answer on Sonnet, grade on Haiku against a
+  rubric, average the scores. The grader uses a schema; the course's prefill route is kept
+  as a comment with the failure it produced.
 
 ## Run
 
