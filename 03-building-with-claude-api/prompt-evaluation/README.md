@@ -213,6 +213,85 @@ Two sources stack: the answer varies run to run, and the grade of a given answer
 too. More rows is the fix — each score is worth 1/n of the average, so 30 rows gives ten
 times the resolution of 3.
 
+**Code-based grading**
+
+A code grader parses the output instead of judging it: valid JSON, parses as Python, the
+regex compiles. Free, instant, and **deterministic — the same input always scores the
+same, so it adds no noise at all.**
+
+It needs two things the model grader doesn't:
+
+- **A prompt that asks for code only.** Parse a markdown answer full of headings and
+  explanation and every check fails on the prose rather than the code.
+- **A `format` on each dataset row**, so the right validator runs. `Literal["python",
+  "json", "regex"]` on the schema keeps a regenerated dataset honest.
+
+The validators take no `client` — they make no API call. "Missing `client`" is only ever a
+bug in functions that talk to the API.
+
+**Combining the two scores: gate, don't average**
+
+```python
+score = model_score if syntax_score == 10 else 0
+```
+
+Averaging a 1–10 judgement with a binary 0/10 distorts both ends — a syntax failure caps a
+strong answer at 5, a syntax pass drags a weak one up toward 10. Code that doesn't parse
+is worthless whatever the intent, so it scores 0. Keep both components in the result so a
+0 is explainable.
+
+**The two graders catch different things.** A real run here:
+
+```
+1. format=regex   final=0   model=5  syntax=0     <- (?<name>) is JavaScript; Python needs (?P<name>)
+2. format=python  final=7   model=7  syntax=10
+3. format=json    final=8   model=8  syntax=10
+```
+
+The model grader read that regex, judged it reasonable and gave it 5. It never noticed the
+pattern won't compile. The code grader caught it instantly and for free. A model grader
+judges *plausibility*; a code grader checks *fact*.
+
+## Noise floor
+
+**The smallest change in the average that means anything.** Run the eval twice with
+nothing changed — whatever the two averages differ by is noise, and any prompt change
+producing a smaller delta than that has told you nothing.
+
+Measured here, twice:
+
+| Setup | Runs | Noise floor |
+|---|---|---|
+| Model grader only, 3 rows | 7.000 / 7.333 | ~0.33 |
+| Model + syntax gate, 3 rows | 7 / 5 | ~2.0 |
+
+The gate made it far worse — one case flipping now swings the mean by over two points
+instead of a third of one. That isn't a reason to soften the gate; the underlying
+instability is real (Claude genuinely writes a non-compiling regex some of the time) and
+the eval is correctly reporting a flaky prompt.
+
+**Where the noise comes from**
+
+1. The answer varies — same prompt, different solution each run
+2. The grade varies — the model grader judges the same answer slightly differently
+3. Binary gates amplify both: a case doesn't drift a point, it jumps the full range
+
+**How to lower it**
+
+- **More rows.** The biggest lever by far. Each case is worth 1/n of the average, so 30
+  rows gives ten times the resolution of 3. Scores × cost both scale linearly; resolution
+  scales with them.
+- **Run each case more than once and average** before averaging across cases. Costs
+  multiply, but it attacks per-case variance directly.
+- **Tighten the rubric.** Vague criteria let the grader wander; explicit ones ("10 = runs
+  as written and handles the stated edge cases") produce steadier scores.
+- **Lower the temperature** — unavailable on `claude-sonnet-5`, where it's removed, so on
+  current models this lever is gone and dataset size has to do the work.
+- **Prefer code graders where a check is possible.** They contribute exactly zero noise.
+
+Practical rule: **measure the floor before reading any improvement.** A 0.4 gain against a
+2.0 floor isn't an improvement, it's a coin flip.
+
 ## Frontend mental model
 
 - **The eval dataset is a test suite.** Fixed inputs you re-run after every change.
@@ -242,6 +321,13 @@ times the resolution of 3.
 - **`json.dump` can't write Pydantic objects** — `TypeError: Object of type Task is not
   JSON serializable`. Call `model_dump()` first. Objects in the middle, plain dicts at the
   edges.
+- **A code grader only works if the prompt asks for code only.** Otherwise every check
+  parses markdown prose and fails for reasons unrelated to the code.
+- **"Missing `client`" applies only to functions that call the API.** `json.loads`,
+  `ast.parse` and `re.compile` are local — passing a client raises `TypeError: loads()
+  takes 1 positional argument`.
+- **Changing the prompt voids the baseline.** A new prompt is a different thing being
+  measured; the old average no longer compares.
 - **Measure the noise floor before reading any improvement.** Run the eval twice unchanged.
   Whatever the averages differ by is the smallest change that means anything.
 - **A missing `f` prefix fails silently and is the worst bug in the module.** `{task}` and
@@ -278,6 +364,8 @@ times the resolution of 3.
 - `model_based_grading.py` — the full loop: answer on Sonnet, grade on Haiku against a
   rubric, average the scores. The grader uses a schema; the course's prefill route is kept
   as a comment with the failure it produced.
+- `code_based_grading.py` — both graders together: syntax validators dispatched on the
+  row's `format`, gated against the model score.
 
 ## Run
 

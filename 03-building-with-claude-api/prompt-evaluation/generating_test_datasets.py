@@ -21,6 +21,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Literal
 
 import anthropic
 from dotenv import load_dotenv
@@ -69,6 +70,10 @@ def chat(client: anthropic.Anthropic, messages: list, system = anthropic.omit,
 # prompt — with a schema attached, the schema IS the contract, so describing it in prose
 # as well is redundant and can conflict with it.
 class Task(BaseModel):
+    # The code grader needs to know WHICH validator to run, so each row carries its
+    # format. Literal restricts it to the three the graders can actually handle — the
+    # schema rejects anything else rather than letting a typo through.
+    format: Literal["python", "json", "regex"]
     task: str
 
 class Dataset(BaseModel):
