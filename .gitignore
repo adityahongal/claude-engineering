@@ -11,3 +11,7 @@ __pycache__/
 # Node
 node_modules/
 package-lock.json
+
+# Eval run output — regenerated whenever the prompt changes.
+# dataset.json IS committed (it's the stable baseline); answers.json is derived.
+answers.json

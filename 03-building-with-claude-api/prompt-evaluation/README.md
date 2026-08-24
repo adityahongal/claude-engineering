@@ -135,6 +135,39 @@ Grading is also a simpler job than the task itself, so running the grader on
 `claude-haiku-4-5` while answering on Sonnet cuts that half by roughly two thirds —
 different models for different roles in one pipeline is normal, not a compromise.
 
+**Running the eval**
+
+Three layers, each one step more specific:
+
+```
+run_eval          for every task in the dataset...
+  run_test_case     ...answer it and score it...
+    run_prompt        ...by filling the template and calling Claude
+```
+
+Each collects what the one below returns: a string, wrapped into a result dict, gathered
+into a list. It's split this way because grading slots into `run_test_case` — "everything
+that happens to one row" is answer *and* judge.
+
+Each result keeps `output`, `test_case` and `score` together. The grader needs the
+original task to judge the answer against, and a bare score tells you the average moved
+without telling you which task moved it.
+
+The dataset is **read**, never regenerated here. Answers are written to `answers.json` so
+grading — the part you iterate on — can re-run without paying to answer everything again.
+
+**Truncation quietly poisons an eval**
+
+A reply that hits `max_tokens` is **cut off, not finished**, and `stop_reason` says so. In
+an eval that's worse than a normal bug: a truncated answer scores badly for a reason that
+has nothing to do with the prompt being measured, so the baseline is wrong and every
+comparison against it inherits the error.
+
+Two of the first three answers here hit a 1024 ceiling — a regex with explanation and a
+Python function with commentary. Character count is a poor guide, because code and JSON
+tokenize denser than prose. `UsageTracker` now counts `stop_reason == "max_tokens"` and
+warns, so it can't pass unnoticed.
+
 ## Frontend mental model
 
 - **The eval dataset is a test suite.** Fixed inputs you re-run after every change.
@@ -164,6 +197,13 @@ different models for different roles in one pipeline is normal, not a compromise
 - **`json.dump` can't write Pydantic objects** — `TypeError: Object of type Task is not
   JSON serializable`. Call `model_dump()` first. Objects in the middle, plain dicts at the
   edges.
+- **Check `stop_reason` before trusting an eval score.** `max_tokens` means the answer was
+  cut off; grading it measures the ceiling, not the prompt.
+- **Adding a parameter to a signature isn't the same as passing it at the call site.**
+  Half-fixes like this compile fine and fail at runtime.
+- **`dataset.json` is committed, `answers.json` is git-ignored.** The dataset is a stable
+  input — a baseline that shifts isn't a baseline. The answers are derived output,
+  regenerated whenever the prompt changes.
 - **Don't describe the output shape in both the prompt and the schema.** With
   `output_format` the schema is the contract; an example JSON block in the prompt is
   redundant and can contradict it.
@@ -176,8 +216,10 @@ different models for different roles in one pipeline is normal, not a compromise
   schema, and writes it to `dataset.json`. The course's prefill route is kept as a comment.
 - `dataset.json` — the generated eval set. Committed on purpose: a baseline that changes
   between runs isn't a baseline.
-- `usage_tracker.py` — running token totals and cost estimates, plus a `count_tokens`
-  wrapper for pricing a run before making it.
+- `usage_tracker.py` — running token totals and cost estimates, a `count_tokens` wrapper
+  for pricing a run before making it, and a truncation warning.
+- `running_the_eval.py` — reads the dataset, runs every task through the prompt, writes
+  the answers to `answers.json` (git-ignored) for grading to pick up.
 
 ## Run
 

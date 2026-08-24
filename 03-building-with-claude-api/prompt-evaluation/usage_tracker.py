@@ -31,6 +31,7 @@ class UsageTracker:
         self.calls = 0
         self.input_tokens = 0
         self.output_tokens = 0
+        self.truncated = 0
 
     def record(self, response):
         """Add one response's usage to the totals. Returns the response so it can be
@@ -39,6 +40,13 @@ class UsageTracker:
         self.calls += 1
         self.input_tokens += response.usage.input_tokens
         self.output_tokens += response.usage.output_tokens
+
+        # stop_reason == "max_tokens" means the reply was CUT OFF, not finished. Easy to
+        # miss by eye, and poison in an eval: a truncated answer scores badly for a reason
+        # that has nothing to do with the prompt being measured.
+        if getattr(response, "stop_reason", None) == "max_tokens":
+            self.truncated += 1
+
         return response
 
     @property
@@ -55,6 +63,11 @@ class UsageTracker:
             f"in {self.input_tokens:,} | out {self.output_tokens:,} | "
             f"~${self.cost:.4f}"
         )
+        if self.truncated:
+            print(
+                f"  !! {self.truncated} of {self.calls} responses hit max_tokens and were "
+                f"cut off. Raise MAX_TOKENS and re-run before grading."
+            )
 
 
 def estimate_input_tokens(client, model: str, messages: list, **kwargs) -> int:
