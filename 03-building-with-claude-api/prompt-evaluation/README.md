@@ -102,6 +102,39 @@ Prefill plus `stop_sequences` recurs through the course whenever JSON is wanted,
 
 > course says *prefill + `stop_sequences`* → write `messages.parse(output_format=Model)`
 
+**Tracking tokens and cost**
+
+Two mechanisms:
+
+- **`response.usage`** — exact `input_tokens` / `output_tokens` for the call just made.
+  Accumulate across a run to see what it really cost.
+- **`client.messages.count_tokens(...)`** — counts the input a request *would* use without
+  running the model. Free, so a large run can be priced before committing to it. Input
+  only; output length isn't knowable until Claude has written it.
+
+`usage_tracker.py` wraps both. `record()` returns the response, so it fits around an
+existing call without restructuring:
+
+```python
+tracker = UsageTracker(MODEL)
+response = tracker.record(client.messages.parse(...))
+tracker.report()      # 6 calls | in 2,700 | out 1,650 | ~$0.0329
+```
+
+The figure that matters isn't one run — it's runs × iterations, because evaluating means
+re-running constantly. On Sonnet, one answer plus one grade per task:
+
+| Dataset | Per run | Runs on $5 |
+|---|---|---|
+| 3 tasks | ~$0.03 | ~150 |
+| 25 tasks | ~$0.27 | ~18 |
+| 100 tasks | ~$1.10 | ~4 |
+
+Keep the dataset small while building the pipeline and grow it once the machinery works.
+Grading is also a simpler job than the task itself, so running the grader on
+`claude-haiku-4-5` while answering on Sonnet cuts that half by roughly two thirds —
+different models for different roles in one pipeline is normal, not a compromise.
+
 ## Frontend mental model
 
 - **The eval dataset is a test suite.** Fixed inputs you re-run after every change.
@@ -141,6 +174,10 @@ Prefill plus `stop_sequences` recurs through the course whenever JSON is wanted,
   worked example.
 - `generating_test_datasets.py` — asks Claude for the eval set, constrained to a Pydantic
   schema, and writes it to `dataset.json`. The course's prefill route is kept as a comment.
+- `dataset.json` — the generated eval set. Committed on purpose: a baseline that changes
+  between runs isn't a baseline.
+- `usage_tracker.py` — running token totals and cost estimates, plus a `count_tokens`
+  wrapper for pricing a run before making it.
 
 ## Run
 

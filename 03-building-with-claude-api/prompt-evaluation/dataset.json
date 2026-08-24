@@ -1,0 +1,11 @@
+[
+  {
+    "task": "Write a regex pattern to validate and extract the components (account ID, region, resource type, resource ID) from an AWS ARN string, such as 'arn:aws:s3:us-east-1:123456789012:bucket/my-bucket'."
+  },
+  {
+    "task": "Write a Python function that takes a list of EC2 instance dictionaries (each with 'InstanceId', 'State', and 'LaunchTime' keys) and returns a list of instance IDs for all instances that are in the 'running' state."
+  },
+  {
+    "task": "Write a JSON object representing an AWS IAM policy document that grants read-only access (GetObject and ListBucket actions) to a specific S3 bucket named 'my-example-bucket' and its contents."
+  }
+]
