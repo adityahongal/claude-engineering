@@ -20,6 +20,7 @@ for JSON and it recurs in later lessons.
 import json
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Literal
 
@@ -27,8 +28,21 @@ import anthropic
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+# Sits next to this file, so Python finds it by module name — no path juggling.
+from usage_tracker import UsageTracker
+
 MODEL = "claude-sonnet-5"
-MAX_TOKENS = 1024
+
+# 20 rows of prose is far more than 1024 tokens. Under messages.create a too-small ceiling
+# gives you a silently truncated answer; under messages.parse it's worse — the JSON stops
+# mid-object and the whole call fails validation. Size this to the OUTPUT you're asking
+# for, not to a habit.
+MAX_TOKENS = 8192
+
+# How many test cases to generate. Three was enough to get the pipeline working, but far
+# too few to measure a prompt with — see the noise floor note in the README. Twenty is the
+# working size from here on.
+DATASET_SIZE = 20
 
 # helper functions
 # add_assistant_message and chat are unused on the live path below — kept because the
@@ -82,16 +96,23 @@ class Dataset(BaseModel):
 
 # Now we'll create our dataset generation function:
 
-def generate_dataset(client: anthropic.Anthropic) -> list[dict]:
+def generate_dataset(client: anthropic.Anthropic,
+                     tracker: UsageTracker | None = None) -> list[dict]:
 
-    # Step 1 — the prompt describing what the dataset should contain
-    prompt = """
+    # Step 1 — the prompt describing what the dataset should contain.
+    # f-string now, so DATASET_SIZE actually reaches the prompt. (A plain string would send
+    # the literal text "{DATASET_SIZE}" and Claude would guess a number — the same missing-f
+    # bug that made the grader read "{task}" as its input.)
+    prompt = f"""
 Generate an evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects, each representing task that requires Python, JSON, or a Regex to complete.
 
 * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a single regex
 * Focus on tasks that do not require writing much code
+* Spread the tasks roughly evenly across the three formats
+* Vary the difficulty — some straightforward, some with an edge case worth getting right
+* Cover different AWS services rather than repeating one, and do not repeat a task
 
-Please generate 3 objects.
+Please generate {DATASET_SIZE} objects.
 """
 
     # Step 2 — build the message list for THIS request. It belongs here, not in main():
@@ -108,7 +129,13 @@ Please generate 3 objects.
         output_format = Dataset,
     )
 
-    # Step 4 — parsed_output is already a validated Dataset. Convert the models back to
+    # Step 4 — record the spend, and let the tracker shout if the reply was cut off.
+    # Truncation here doesn't usually reach this line (parse fails first), but a warning is
+    # cheaper than guessing why.
+    if tracker is not None:
+        tracker.record(response)
+
+    # Step 5 — parsed_output is already a validated Dataset. Convert the models back to
     # plain dicts so they can go straight to JSON.
     return [task.model_dump() for task in response.parsed_output.tasks]
 
@@ -133,18 +160,23 @@ def main():
         sys.exit("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.")
 
     client = anthropic.Anthropic()
+    tracker = UsageTracker(MODEL)
 
     try:
         # Step 2 — generate the dataset
-        dataset = generate_dataset(client)
-        print(dataset)
+        dataset = generate_dataset(client, tracker)
 
         # Step 3 — write it next to THIS file, not next to wherever python was launched
         out_path = Path(__file__).parent / "dataset.json"
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(dataset, f, indent=2)
 
+        # A quick count per format — an accidental 18-python / 1-json split would leave the
+        # other two validators barely exercised, and you'd never notice from the average.
+        counts = Counter(row["format"] for row in dataset)
+        print(f"{len(dataset)} tasks:", dict(counts))
         print("Saved →", out_path.name)
+        tracker.report()
 
     except (KeyboardInterrupt, EOFError):
         # Ctrl+C / Ctrl+D — a deliberate exit, so leave quietly instead of with a traceback

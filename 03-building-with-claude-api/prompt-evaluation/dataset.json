@@ -1,14 +1,82 @@
 [
   {
-    "format": "regex",
-    "task": "Write a regex pattern to validate and extract the components (account ID, region, resource type, resource ID) from an AWS ARN string, such as 'arn:aws:s3:us-east-1:123456789012:bucket/my-bucket'."
-  },
-  {
     "format": "python",
-    "task": "Write a Python function that takes a list of EC2 instance dictionaries (each with 'InstanceId', 'State', and 'LaunchTime' keys) and returns a list of instance IDs for all instances that are in the 'running' state."
+    "task": "Write a Python function that takes an S3 URI (e.g., 's3://my-bucket/path/to/object.txt') and returns a tuple of (bucket_name, key). Handle edge cases where the key contains additional slashes."
   },
   {
     "format": "json",
-    "task": "Write a JSON object representing an AWS IAM policy document that grants read-only access (GetObject and ListBucket actions) to a specific S3 bucket named 'my-example-bucket' and its contents."
+    "task": "Write an IAM policy JSON document that grants a user read-only access (GetObject, ListBucket) to a specific S3 bucket named 'company-data-bucket' and its contents."
+  },
+  {
+    "format": "regex",
+    "task": "Write a regex to validate and extract the account ID and role name from an AWS IAM role ARN in the format 'arn:aws:iam::123456789012:role/RoleName'."
+  },
+  {
+    "format": "python",
+    "task": "Write a Python function that generates a presigned URL for downloading an object from S3 given a bucket name, key, and expiration time in seconds, using boto3."
+  },
+  {
+    "format": "json",
+    "task": "Write a CloudFormation JSON template snippet that defines a single S3 bucket resource with versioning enabled."
+  },
+  {
+    "format": "regex",
+    "task": "Write a regex to match valid EC2 instance IDs, which start with 'i-' followed by either 8 or 17 hexadecimal characters."
+  },
+  {
+    "format": "python",
+    "task": "Write a Python function that lists all running EC2 instances in a given AWS region using boto3 and returns their instance IDs as a list."
+  },
+  {
+    "format": "json",
+    "task": "Write a JSON Lambda function configuration object (as used in the AWS SDK) specifying runtime 'python3.11', handler 'index.handler', memory size 256, and timeout 30 seconds."
+  },
+  {
+    "format": "regex",
+    "task": "Write a regex to extract the bucket name and object key from an S3 object URL in the virtual-hosted style format 'https://bucket-name.s3.amazonaws.com/key/path/file.txt'."
+  },
+  {
+    "format": "python",
+    "task": "Write a Python function that parses a DynamoDB stream event record and extracts the 'eventName' and the new image of the item as a dictionary, handling the case where 'NewImage' might be missing."
+  },
+  {
+    "format": "json",
+    "task": "Write a JSON object representing an SQS queue policy that allows only a specific IAM role ARN to send messages to the queue."
+  },
+  {
+    "format": "regex",
+    "task": "Write a regex that validates an AWS access key ID, which starts with 'AKIA' followed by exactly 16 uppercase alphanumeric characters."
+  },
+  {
+    "format": "python",
+    "task": "Write a Python function that takes a CloudWatch Logs log group name and a number of days, then returns the number of log streams that had events within that time window, using boto3 (assume filter_log_events is used)."
+  },
+  {
+    "format": "json",
+    "task": "Write a JSON object representing an AWS Step Functions state machine definition with a single Task state that invokes a Lambda function and then ends."
+  },
+  {
+    "format": "regex",
+    "task": "Write a regex to validate AWS Lambda function ARNs, which follow the pattern 'arn:aws:lambda:region:account-id:function:function-name' optionally followed by a version or alias suffix."
+  },
+  {
+    "format": "python",
+    "task": "Write a Python function that computes the estimated monthly cost of an S3 bucket given its total storage size in GB and a per-GB price, rounding to two decimal places, and raising a ValueError if the size is negative."
+  },
+  {
+    "format": "json",
+    "task": "Write a JSON object for an EventBridge rule that triggers on a schedule expression of 'rate(5 minutes)' and targets a specific Lambda function ARN."
+  },
+  {
+    "format": "regex",
+    "task": "Write a regex to match and capture the region and service name from an AWS ARN string, e.g., 'arn:aws:s3:us-east-1:123456789012:bucket/my-bucket' should capture 's3' and 'us-east-1'."
+  },
+  {
+    "format": "python",
+    "task": "Write a Python function that checks whether a given security group (as a dict with an 'IpPermissions' list) allows unrestricted inbound access (0.0.0.0/0) on port 22, returning True or False."
+  },
+  {
+    "format": "json",
+    "task": "Write a JSON object representing a Secrets Manager secret resource definition with a randomly generated password policy requiring 16 characters excluding punctuation."
   }
 ]

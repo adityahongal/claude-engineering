@@ -89,11 +89,23 @@ request, constrains generation to fit it, and validates the reply into real obje
 `model_dump()` converts them back to plain dicts, because `json.dump` can only write
 built-in types.
 
-Validation has moved: on Day 5 you validated a dict *after* it arrived and handled
-`ValidationError`. Here the wrong shape can't be generated in the first place.
+Validation has moved. The usual pattern is to validate a dict *after* it arrives and handle
+`ValidationError`; here the wrong shape can't be generated in the first place.
 
 Because it's generated, the dataset is worth **committing** rather than regenerating each
 run — an eval set that changes underneath you isn't a baseline.
+
+**Size `max_tokens` to the output you asked for.** Twenty rows of task descriptions came
+back as 1,376 output tokens. The original 1024 ceiling would have cut the JSON off
+mid-object, and under `parse` that isn't a truncated-but-usable answer — the reply fails
+validation and the whole call raises. Under `create` it's quieter and worse: you get a
+half-answer that looks fine. Whenever the requested output grows, the ceiling has to grow
+with it.
+
+**Check the shape of what came back, not just the count.** Asking for a spread across
+three formats doesn't guarantee one. A run that returns 18 Python tasks and 1 JSON leaves
+two of the three validators barely exercised, and the average score hides it completely —
+so the generator prints a per-format tally (here: 7 python / 7 json / 6 regex).
 
 **The course's default JSON move is prefill**
 
@@ -131,6 +143,9 @@ re-running constantly. On Sonnet, one answer plus one grade per task:
 | 100 tasks | ~$1.10 | ~4 |
 
 Keep the dataset small while building the pipeline and grow it once the machinery works.
+That's the trade made here: three rows while the graders were being wired up, 20 now that
+they work — about **$0.22 a run**, so roughly 20 full runs on a $5 balance. Enough to
+compare prompts properly, not enough to run carelessly.
 Grading is also a simpler job than the task itself, so running the grader on
 `claude-haiku-4-5` while answering on Sonnet cuts that half by roughly two thirds —
 different models for different roles in one pipeline is normal, not a compromise.
@@ -269,6 +284,11 @@ The gate made it far worse — one case flipping now swings the mean by over two
 instead of a third of one. That isn't a reason to soften the gate; the underlying
 instability is real (Claude genuinely writes a non-compiling regex some of the time) and
 the eval is correctly reporting a flaky prompt.
+
+Both of those numbers came off a three-row dataset, where one case *is* a third of the
+score. `dataset.json` is 20 rows from here on, which should pull the floor down by roughly
+the square root of the row increase — but that's a prediction, not a measurement. Run it
+twice unchanged and find out before trusting any prompt comparison built on it.
 
 **Where the noise comes from**
 
