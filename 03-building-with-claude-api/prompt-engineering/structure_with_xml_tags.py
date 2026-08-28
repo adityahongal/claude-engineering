@@ -4,30 +4,34 @@ Tags separate the parts of a prompt that are instructions from the parts that ar
 a long prompt stays unambiguous about which is which.
 """
 
-from helpers import UsageTracker, compare, get_client, run
+from pathlib import Path
 
-MODEL = "claude-sonnet-5"
+from helpers import ask, get_client, run
+from prompt_engineering import DATASET, EXTRA_CRITERIA
+from prompt_evaluator import PromptEvaluator
 
-# The data the prompt operates on, kept out of the prompt string itself. Realistic shape:
-# in production this is user input or a fetched document, not something you typed.
-DOCUMENT = """
+HERE = Path(__file__).parent
+
+
+def run_prompt(client, prompt_inputs, tracker):
+    # The athlete's details are DATA; the meal-plan instructions are INSTRUCTIONS. By this
+    # point the prompt is long enough that the boundary between the two has gone fuzzy —
+    # tags such as <athlete>...</athlete> put it back.
+    prompt = f"""
 """
+    return ask(client, prompt, tracker=tracker)
 
 
 def main():
     client = get_client()
-    tracker = UsageTracker(MODEL)
+    evaluator = PromptEvaluator(client, max_concurrent_tasks=3)
 
-    # f-strings here — the DOCUMENT has to actually reach the prompt. A plain string sends
-    # the literal text "{DOCUMENT}" and Claude answers about nothing, confidently.
-    prompts = {
-        "unstructured": f"",
-        "tagged": f"",
-    }
-
-    compare(client, prompts, tracker=tracker)
-
-    tracker.report()
+    evaluator.run_evaluation(
+        run_prompt_function=run_prompt,
+        dataset_file=str(DATASET),
+        extra_criteria=EXTRA_CRITERIA,
+        report_file=str(HERE / "report_xml_tags.html"),
+    )
 
 
 if __name__ == "__main__":

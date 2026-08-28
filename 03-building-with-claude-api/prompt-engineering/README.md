@@ -7,6 +7,104 @@ a real improvement from a lucky run, and without it every technique here is opin
 
 ## Notes
 
+**What the module measures, and how it differs from the last one**
+
+The running example is a one-day meal plan for an athlete. The shape of a test case changed
+from the previous folder, and the difference is the whole point of the module:
+
+| | prompt evaluation | prompt engineering |
+|---|---|---|
+| A dataset row | a complete `task` string | `prompt_inputs` — height, weight, goal, restrictions |
+| Under test | which task was asked | the **template** those inputs are dropped into |
+| Grading | model score + syntax gate | model score against `solution_criteria` + `extra_criteria` |
+
+So the inputs are frozen and committed, and the only thing that moves between lessons is
+the wording wrapped around them. That is what makes two scores comparable at all. The
+20-row AWS dataset in [`../prompt-evaluation/`](../prompt-evaluation/) still guards that
+folder's prompt — it is a different experiment, not a superseded one.
+
+**The evaluator**
+
+The course hands you a `PromptEvaluator` class. `prompt_evaluator.py` is the local
+equivalent, assembled from the pipeline built by hand in module 3 — same three steps (run
+the prompt, grade the answer, average the scores), packaged so a lesson is a few lines.
+
+```python
+evaluator = PromptEvaluator(client, max_concurrent_tasks=3)
+evaluator.generate_dataset(task_description=..., prompt_inputs_spec=..., num_cases=3)
+evaluator.run_evaluation(run_prompt_function=run_prompt, dataset_file=..., extra_criteria=...)
+```
+
+Points worth knowing about it:
+
+- **`create_model` builds the schema at runtime.** The field names come from
+  `prompt_inputs_spec`, so they aren't known when the file is written. `create_model(...)`
+  is a `class` statement assembled from a dict — same result, built from an argument.
+- **`run_prompt(client, prompt_inputs, tracker)` takes three arguments here**, where the
+  course version takes one. In a notebook `client` is a global that every cell can see; a
+  script has no such namespace, so the evaluator passes it in.
+- **Cases run on threads.** An API call is spent waiting on the network, so three at once
+  finishes in roughly the time of one. Keep the number low or you earn a `429`.
+- **Two trackers, two models.** Answering on Sonnet, grading on Haiku. One combined total
+  would hide that grading is the cheap half.
+- **`solution_criteria` are generated per case.** A grader given concrete, checkable
+  criteria is steadier than one asked for a general impression — it directly lowers the
+  noise floor.
+
+**Sizing the dataset against a budget**
+
+Two costs that look similar and behave nothing alike:
+
+| | cost | how often |
+|---|---|---|
+| Generating cases | ~$0.01–0.03 | once, ever |
+| Running 3 cases | ~$0.06 | every single run |
+
+**Measured**, from the first two real runs: about **1.9¢ per case** — roughly 1.5¢ for the
+Sonnet answer and 0.45¢ for the Haiku grade. The estimate beforehand was 1.5¢, so the
+guess came in about a quarter low; the grader writes more reasoning than expected, and
+reasoning is output tokens. Take the tracker's number over any table, including this one.
+
+At 1.9¢ a case, a module with a baseline, four techniques and some re-running lands near
+twelve full runs: about **$0.68 at three cases, $2.25 at ten**.
+
+Generating big is nearly free; running big is what adds up. And the asymmetry only goes
+one way — a subset of a large dataset is always available, while a superset of a small one
+means regenerating, which makes every score already recorded incomparable.
+
+`run_evaluation(..., limit=3)` trims what actually executes while a prompt is still being
+drafted. A limited score is not a rougher version of the full score — it is a different
+average over a different set, so compare limited with limited and settle the question with
+a full run.
+
+The committed `dataset.json` holds **3 cases**, generated before `num_cases` was raised to
+10. Raising that number changes nothing on its own: generation is skipped whenever the file
+exists, which is deliberate — regenerating would make every score below incomparable. The
+script prints the real count on each run so the two can't quietly drift apart.
+
+## Results
+
+Same dataset, same criteria, same grader. Only the prompt wording changed.
+
+| Prompt | Average | Per case |
+|---|---|---|
+| Naive baseline — *"What should this person eat?"* | 6.00 | 7, **4**, 7 |
+| Clear and direct | **8.00** | 8, 8, 8 |
+
+Two points on a three-case set, against a noise floor measured at ~0.33 in the previous
+module. That is a real gain, not a coin flip.
+
+The average understates what actually happened, though. The naive prompt did not fail
+evenly — it scored 7 on the unconstrained athlete and **4** on the vegan and gluten-free
+case. The weak prompt was adequate until the task got hard, then it collapsed. Stating the
+task plainly did not make every answer better by two points; it rescued the one that was
+broken and nudged the rest.
+
+Worth noticing separately: the spread went from `7, 4, 7` to `8, 8, 8`. **Consistency
+improved more than the mean did**, which is usually the thing you actually want from a
+production prompt — and it is invisible in an average. Read the per-case scores in the
+HTML report, not just the headline number.
+
 **The helper module**
 
 The previous two folders hand-wrote the same four things in every file: `load_dotenv()`
@@ -43,11 +141,34 @@ for — with a 20-row dataset and a measured noise floor to compare against.
 - **`helpers.py` reaches into the sibling folder** for `usage_tracker.py` via a `sys.path`
   insert rather than keeping a second copy that would drift. Packaging is the real fix;
   two explicit lines are the honest trade for a folder of exercises.
+- **Generate `dataset.json` once, then leave it.** Regenerating it makes every score from
+  every previous lesson incomparable. `prompt_engineering.py` skips generation if the file
+  already exists, so re-running it is safe.
+- **`messages.parse` sends the schema as `output_config`, not `output_format`.** The
+  keyword argument and the wire format have different names — worth knowing if you ever
+  inspect a request body or write a mock against one.
+- **`parse` reads its JSON out of a `text` block**, not a `tool_use` block. The structured
+  output arrives as ordinary text that the SDK then validates.
+- **A shared counter across threads needs a lock.** `tracker.record()` does `+=`, which is
+  a read then a write; two threads can interleave between the two halves and lose a count.
+- **A wrong key in the prompt is free; a missing one is expensive.** `prompt_inputs["typo"]`
+  raises `KeyError` while the f-string is built, before any request goes out — zero API
+  calls, immediate traceback. Silently *omitting* an input is the dangerous one: it runs,
+  returns a plausible score, and that score measures the wording change and the lost
+  information together. Dropping `goal` from the improved prompt would likely have scored
+  *below* the baseline and made the technique look harmful.
+- **Read the per-case scores, not just the average.** A prompt that scores 7, 4, 7 is not
+  a "6.0 prompt" — it is a prompt with one failure mode, and the average hides which case
+  and why.
+- **Raising `num_cases` does nothing while `dataset.json` exists.** That is the intended
+  behaviour; delete the file deliberately to regenerate, and expect every prior score to
+  become incomparable when you do.
 
 ## Files
 
 - `helpers.py` — shared plumbing: client setup, message builders, `chat`, error handling
-- `prompt_engineering.py` — what the techniques are for, and where they sit next to evaluation
+- `prompt_evaluator.py` — the `PromptEvaluator` class: generate a dataset, run, grade, report
+- `prompt_engineering.py` — the naive baseline prompt and the score everything is measured against
 - `being_clear_and_direct.py` — stating the task, the audience, and what "done" looks like
 - `being_specific.py` — constraints on format, length, omissions, and edge cases
 - `structure_with_xml_tags.py` — separating instructions from data in a long prompt
@@ -57,10 +178,18 @@ The course also has an exercise and a quiz for this module; neither produces a f
 
 ## Run
 
+Order matters — the baseline generates `dataset.json`, and every later lesson reads it.
+
 ```bash
 cd 03-building-with-claude-api/prompt-engineering
-python being_clear_and_direct.py
+
+python prompt_engineering.py       # baseline score, generates dataset.json if absent
+python being_clear_and_direct.py   # one technique applied, same dataset
 ```
+
+Each writes a `report_*.html` next to itself — open it to see per-case scores, the full
+output, and the grader's reasoning. Reports are git-ignored; they are regenerated on every
+run.
 
 The virtual environment and `.env` are shared — see the
 [module README](../README.md#setup).

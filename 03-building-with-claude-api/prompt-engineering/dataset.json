@@ -1,0 +1,47 @@
+[
+  {
+    "prompt_inputs": {
+      "height": "180",
+      "weight": "75",
+      "goal": "Build muscle mass for competitive powerlifting",
+      "restrictions": "None"
+    },
+    "solution_criteria": [
+      "Total daily calorie estimate exceeds maintenance level (surplus) appropriate for a 75kg athlete, roughly 3000-3500 kcal",
+      "Protein intake explicitly calculated or stated at approximately 1.6-2.2g per kg bodyweight (120-165g range)",
+      "Meal plan includes at least 4 distinct eating occasions (breakfast, lunch, dinner, plus snacks) with specific foods and portion sizes listed",
+      "Includes carbohydrate-rich foods timed around training to support strength performance",
+      "Plan is presented compactly (fits on roughly one page, no excessive filler text)"
+    ]
+  },
+  {
+    "prompt_inputs": {
+      "height": "165",
+      "weight": "58",
+      "goal": "Cut body fat while maintaining performance for marathon training",
+      "restrictions": "Vegan and gluten-free"
+    },
+    "solution_criteria": [
+      "All foods listed are strictly plant-based with no animal products (no dairy, eggs, honey, etc.)",
+      "No gluten-containing grains (wheat, barley, rye) appear anywhere in the plan; gluten-free alternatives like rice, quinoa, or oats (certified GF) are used instead",
+      "Calorie level reflects a moderate deficit while still supporting endurance training, roughly 1800-2200 kcal range with justification",
+      "Plant-based protein sources (e.g., lentils, tofu, tempeh, beans) are included in at least 3 meals to address vegan protein adequacy",
+      "Carbohydrate intake is sufficient to fuel marathon training (specific mention of pre/post-run fueling with GF carb sources)"
+    ]
+  },
+  {
+    "prompt_inputs": {
+      "height": "190",
+      "weight": "95",
+      "goal": "Simultaneously gain significant muscle mass and lose body fat quickly within 2 weeks",
+      "restrictions": "Severe shellfish allergy and lactose intolerant, also trying to avoid all added sugar"
+    },
+    "solution_criteria": [
+      "Response acknowledges the inherent tension/conflict in simultaneously bulking and cutting rapidly, and sets realistic expectations (e.g., body recomposition framing, or notes 2 weeks is too short for significant simultaneous gains) rather than ignoring the contradiction",
+      "No shellfish or shellfish-derived ingredients appear anywhere in the plan",
+      "No dairy-based lactose sources included (milk, regular cheese, ice cream) or lactose-free alternatives are explicitly specified if dairy is used",
+      "No added sugars appear in any meal or snack; natural sugars from whole fruit are acceptable but no syrups, sweetened sauces, or desserts with added sugar",
+      "Provides a specific, high-protein calorie target (e.g., protein around 2g/kg ~190g, calories set near maintenance or slight adjustment) with reasoning tied to the recomposition goal rather than an extreme deficit or surplus"
+    ]
+  }
+]

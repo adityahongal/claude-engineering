@@ -38,11 +38,6 @@ MAX_TOKENS = 4096
 
 def get_client() -> anthropic.Anthropic:
     """Load .env, check the key is actually there, and hand back a client.
-
-    The order matters and has bitten before: the client reads ANTHROPIC_API_KEY from the
-    environment once, at construction. Build it before load_dotenv() has run and it
-    captures nothing — the guard below still passes, because the key IS in .env, and the
-    failure surfaces later as a confusing TypeError instead of a clear message here.
     """
     load_dotenv()
 
