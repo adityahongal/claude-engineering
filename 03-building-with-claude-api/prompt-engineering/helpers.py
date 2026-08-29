@@ -31,7 +31,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "prompt-evaluation"))
 from usage_tracker import UsageTracker  # noqa: E402  (import must follow the path insert)
 
 MODEL = "claude-sonnet-5"
-MAX_TOKENS = 4096
+
+# 8192, not 4096. A structured prompt can make Claude write far more than a plain one — the
+# XML-tagged meal plan came back roughly four times longer than the baseline's and hit a
+# 4096 ceiling on two of three cases, scoring 1/10 for being cut off rather than for
+# anything about the prompt.
+#
+# Raising a ceiling cannot change a result that never reached it, so the earlier scores
+# stay valid and comparable. A ceiling only ever costs you the answers that hit it.
+MAX_TOKENS = 8192
 
 
 # ── setup ────────────────────────────────────────────────────────────────────────────

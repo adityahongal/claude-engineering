@@ -258,6 +258,17 @@ quality.
 
         average = mean(result["score"] for result in results)
         print(f"\nAverage score: {average:.2f}  ({len(results)} cases)")
+
+        # A truncated answer is graded on what survived, so it scores badly for a reason
+        # that has nothing to do with the prompt. Say so next to the number rather than
+        # further down in the cost line, where it reads as a footnote to a valid result.
+        if self.answer_tracker.truncated:
+            print(f"\n*** THIS SCORE IS NOT VALID ***\n"
+                  f"    {self.answer_tracker.truncated} of {len(results)} answers hit "
+                  f"max_tokens and were cut off mid-sentence.\n"
+                  f"    Raise MAX_TOKENS in helpers.py and run it again before recording "
+                  f"or comparing this number.")
+
         self.report_cost()
 
         if report_file:

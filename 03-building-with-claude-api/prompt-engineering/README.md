@@ -84,26 +84,51 @@ script prints the real count on each run so the two can't quietly drift apart.
 
 ## Results
 
-Same dataset, same criteria, same grader. Only the prompt wording changed.
+Same dataset, same criteria, same grader, three cases. Only the prompt changed, one
+technique at a time, each building on the last.
 
-| Prompt | Average | Per case |
-|---|---|---|
-| Naive baseline — *"What should this person eat?"* | 6.00 | 7, **4**, 7 |
-| Clear and direct | **8.00** | 8, 8, 8 |
+| Prompt | Scores | Average | Output tokens | Answer cost |
+|---|---|---|---|---|
+| Naive baseline | 5, 5, 7 | 5.67 | 2,814 | $0.043 |
+| Clear and direct | 8, 8, 8 | **8.00** | 3,175 | $0.049 |
+| Being specific | 9, 9, 9 | **9.00** | 6,235 | $0.096 |
+| XML tags | 9, 9, 9 | 9.00 | 13,627 | $0.208 |
+| Providing examples | 9, 9, 9 | 9.00 | 8,133 | $0.128 |
 
-Two points on a three-case set, against a noise floor measured at ~0.33 in the previous
-module. That is a real gain, not a coin flip.
+**The noise floor, measured here rather than assumed.** The baseline was accidentally run
+twice — same prompt, same dataset — scoring `7, 4, 7` (6.00) and `5, 5, 7` (5.67). So the
+floor on the average is about **0.33**, matching the previous module. The per-case numbers
+are far wilder: individual cases moved by up to 2 points between identical runs. The
+average is much steadier than anything inside it, which is the entire reason for averaging.
 
-The average understates what actually happened, though. The naive prompt did not fail
-evenly — it scored 7 on the unconstrained athlete and **4** on the vegan and gluten-free
-case. The weak prompt was adequate until the task got hard, then it collapsed. Stating the
-task plainly did not make every answer better by two points; it rescued the one that was
-broken and nudged the rest.
+That also killed a tempting story. On the first run the baseline scored 4 on the vegan
+case, which looked like "the weak prompt collapses on hard constraints". The second run
+scored that same case 5 and dropped an easy one to 5 instead. One sample of a noisy signal
+will happily support a narrative it cannot actually carry. The defensible claim is duller:
+**the baseline sits near 5.7–6.0 and is inconsistent.**
 
-Worth noticing separately: the spread went from `7, 4, 7` to `8, 8, 8`. **Consistency
-improved more than the mean did**, which is usually the thing you actually want from a
-production prompt — and it is invisible in an average. Read the per-case scores in the
-HTML report, not just the headline number.
+**Everything real happened in the first two steps.** Clear and direct bought +2.3, being
+specific another +1.0. Then it stopped. XML tags and worked examples both scored exactly
+9.00 — no movement at all, well inside noise.
+
+That is a genuine result, not a failed experiment. Those techniques earn their keep on
+prompts that mix large or ambiguous blocks of content; this one is four short labelled
+fields and a list, already unambiguous, and by then the grader's remaining complaints were
+nitpicks ("didn't show the macro calculation working", "no micronutrient discussion").
+There was no headroom left for a formatting technique to win.
+
+**Cost is where they differ, and it diverges sharply.** All three of the last prompts score
+9.00, but XML tags cost **2.2× more per run** than being specific for exactly the same
+score, and examples 1.3× more. Structure made Claude write far more, not better. Scoring a
+prompt on quality alone hides that completely — the cheapest prompt at a given score is the
+one to ship.
+
+**Providing examples: the copying trap did not fire.** The worked example is a chicken and
+eggs plan for an athlete with no restrictions, and the dataset includes a vegan case and a
+lactose-intolerant one. Three explicit "adapt, do not copy" lines were enough — the vegan
+plan borrowed nothing, and the lactose-intolerant plan used almond milk and lactose-free
+substitutes. Without those lines this is the technique most likely to produce a confidently
+wrong answer.
 
 **The helper module**
 
@@ -163,6 +188,20 @@ for — with a 20-row dataset and a measured noise floor to compare against.
 - **Raising `num_cases` does nothing while `dataset.json` exists.** That is the intended
   behaviour; delete the file deliberately to regenerate, and expect every prior score to
   become incomparable when you do.
+- **A truncated answer scores badly for the wrong reason.** The XML run hit a 4096
+  `max_tokens` ceiling on two of three cases; one answer came back empty and was graded
+  **1/10**, producing a confident, meaningless 5.33 average. Re-run untruncated it scored
+  9.00. `max_tokens` now sits at 8192, and `run_evaluation` prints a loud *THIS SCORE IS
+  NOT VALID* block next to the average rather than a footnote further down.
+- **Raising a ceiling cannot invalidate earlier results.** A limit only affects answers that
+  actually reached it, and none of the earlier runs did — so the 8192 change left every
+  previous score comparable.
+- **A more structured prompt is not a shorter one.** Wrapping the same content in XML tags
+  roughly doubled the output. Structure changes how much Claude writes, so cost has to be
+  read alongside score, never instead of it.
+- **Judge a technique on cost per unit of score.** Three prompts here score an identical
+  9.00 at $0.096, $0.128 and $0.208 a run. The score alone says they are equivalent; the
+  bill says one is twice the price for nothing.
 
 ## Files
 
@@ -184,7 +223,10 @@ Order matters — the baseline generates `dataset.json`, and every later lesson 
 cd 03-building-with-claude-api/prompt-engineering
 
 python prompt_engineering.py       # baseline score, generates dataset.json if absent
-python being_clear_and_direct.py   # one technique applied, same dataset
+python being_clear_and_direct.py   # each technique builds on the previous one
+python being_specific.py
+python structure_with_xml_tags.py
+python providing_examples.py
 ```
 
 Each writes a `report_*.html` next to itself — open it to see per-case scores, the full
