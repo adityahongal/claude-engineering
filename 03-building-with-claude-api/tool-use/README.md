@@ -46,14 +46,38 @@ That is also why the file is copied rather than imported: one name cannot mean t
 across folders. Two copies is tolerable; if a third module needs this plumbing, that is the
 signal to stop copying and build a real package.
 
-**Filled in lesson by lesson.**
+**The tool registry**
+
+`tools.py` holds each function, the schema describing it, and the `TOOL_FUNCTIONS` dict that
+turns a name string into something callable. `run_tool(block)` ties them together and
+always returns a `tool_result` — including on failure, flagged `is_error=True`, because
+Claude is blocked waiting on that id and needs an answer either way.
 
 ## Gotchas
 
+- **The block composition is not a contract — measured, not assumed.** The course describes
+  a tool-use reply as `[text, tool_use]`. Two identical runs of
+  `05_handling_message_blocks.py` on `claude-sonnet-5` returned `[thinking, tool_use]` and
+  then `[tool_use]`. Never a text block, and not the same shape twice. Only `stop_reason`
+  and the presence of a `tool_use` block can be relied on.
+- **A `thinking` block has `.thinking`, not `.text`.** So `content[0].text` raises
+  `AttributeError` when a thinking block comes first, and silently reads the wrong block
+  when it doesn't. Filter by `.type`; never index.
 - **`tool_uses()` returns a list.** Claude can ask for several tools in one reply, and
   `content[0]` quietly runs one and drops the rest.
 - **Loop on `stop_reason`, not on the text.** Reading the reply for hints about whether it
   wants a tool is the usual wrong turn.
+- **`tool_result.content` must be a string.** A dict or an int is a 400. `str()` for a
+  string-returning tool, `json.dumps()` for anything structured.
+- **Every `tool_use` block needs its own `tool_result`, in the same user message.** Reply to
+  one of two and the turn is rejected — hence a list comprehension over `tool_uses()`
+  rather than handling a single block.
+- **The follow-up call must still pass `tools=`.** No new call is expected, but the history
+  now refers to a tool and the definition has to travel with it to resolve.
+- **A tool that raises still has to answer.** Claude is blocked on that `tool_use_id`;
+  letting the exception escape leaves a request nothing ever replied to. Catch it, send
+  `is_error=True` with the message, and Claude can retry with better arguments — which is
+  the one place a bare `except Exception` is right rather than sloppy.
 - **The schema description is not documentation.** It is the only thing Claude has when
   deciding whether to call the tool and what to pass — a vague description is a prompt
   engineering bug wearing a JSON hat.
@@ -68,18 +92,30 @@ signal to stop copying and build a real package.
 ## Files
 
 - `helpers.py` — client setup, message builders, `chat()` returning the response, block readers
-- `introducing_tool_use.py` — what tool use is, and what Claude does not do
-- `project_overview.py` — what the module builds
-- `tool_functions.py` — the plain Python functions behind the tools
-- `tool_schemas.py` — describing those functions to Claude
-- `handling_message_blocks.py` — reading `tool_use` out of `response.content`
-- `sending_tool_results.py` — running the function and returning a `tool_result`
-- `multi_turn_with_tools.py` — keeping the history intact across a tool call
-- `implementing_multiple_turns.py` — the loop
-- `using_multiple_tools.py` — several tools, routing by name
-- `fine_grained_tool_calling.py` — closer control over how tool calls are produced
-- `text_edit_tool.py` — an Anthropic-defined tool, implemented locally
-- `web_search_tool.py` — a server-side tool
+- `tools.py` — the tool registry: functions, their schemas, and `run_tool()` dispatch
+- `01_introducing_tool_use.py` — what tool use is, and what Claude does not do
+- `02_project_overview.py` — the reminder project, and why it needs a loop
+- `03_tool_functions.py` — the plain Python functions behind the tools
+- `04_tool_schemas.py` — describing those functions to Claude
+- `05_handling_message_blocks.py` — reading `tool_use` out of `response.content`
+- `06_sending_tool_results.py` — running the function and returning a `tool_result`
+- `07_multi_turn_with_tools.py` — keeping the history intact across a tool call
+- `08_implementing_multiple_turns.py` — the loop
+- `09_using_multiple_tools.py` — several tools, routing by name
+- `10_fine_grained_tool_calling.py` — closer control over how tool calls are produced
+- `11_text_edit_tool.py` — an Anthropic-defined tool, implemented locally
+- `12_web_search_tool.py` — a server-side tool
+
+Lesson files are numbered so the folder reads in course order. The two unnumbered modules
+are shared code, and they have to be: **a module name cannot start with a digit**, so
+`from 03_tool_functions import ...` is a `SyntaxError`. A numbered file can be run but never
+imported, which means anything more than one lesson needs lives in `helpers.py` or
+`tools.py`.
+
+That constraint pushed the project toward the shape it wanted anyway. `tools.py` keeps each
+function beside the schema that describes it and the dispatch that calls it — and since
+nothing checks that a schema still matches its function, sitting in one file is the only
+guard there is.
 
 The course closes the module with a quiz, which produces no file.
 
@@ -87,7 +123,8 @@ The course closes the module with a quiz, which produces no file.
 
 ```bash
 cd 03-building-with-claude-api/tool-use
-python tool_functions.py
+python 03_tool_functions.py      # no API call
+python 06_sending_tool_results.py
 ```
 
 The virtual environment and `.env` are shared — see the [module README](../README.md#setup).
