@@ -18,6 +18,7 @@ Three things stay in sync here, by sitting in the same file:
 """
 
 import calendar
+import json
 from datetime import datetime, timedelta
 
 from anthropic.types import ToolParam
@@ -188,9 +189,20 @@ def run_tool(block) -> dict:
         # drifted from its function surfaces as a TypeError right here.
         return tool_result(block.id, f"{type(err).__name__}: {err}", is_error=True)
 
-    # content must be a STRING — a dict or an int is a 400. str() is enough for a
-    # string-returning tool; anything structured needs json.dumps().
-    return tool_result(block.id, str(output), is_error=False)
+    # content must be a STRING — a dict or an int is a 400. A string goes through as-is;
+    # anything else is json.dumps()ed. The course dumps everything, but json.dumps on a
+    # string wraps it in quotes: '"2026-10-01"' — harmless, and pure noise.
+    content = output if isinstance(output, str) else json.dumps(output)
+    return tool_result(block.id, content, is_error=False)
+
+
+def run_tools(response) -> list:
+    """A tool_result for every tool_use block in the response, in order.
+
+    The list is the whole content of the next user message. Claude can ask for several
+    tools in one reply, and each one needs its own answer in that same message.
+    """
+    return [run_tool(block) for block in response.content if block.type == "tool_use"]
 
 
 def tool_result(tool_use_id: str, content: str, is_error: bool = False) -> dict:

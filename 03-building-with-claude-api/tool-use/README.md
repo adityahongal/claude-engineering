@@ -88,16 +88,23 @@ Claude is blocked waiting on that id and needs an answer either way.
   `add_user_message(messages, response)` right after `chat()`; that has to be
   `add_assistant_message`. The written summary has it right.
 - **Guard against a runaway loop.** Nothing stops Claude asking for tools indefinitely.
-  Cap the number of iterations.
+  `run_conversation` caps the turns and **raises** past the cap rather than returning —
+  the last response is a tool request, and returning it would pass it off as an answer.
+- **Don't `json.dumps` a string result.** The course dumps every tool output, which wraps a
+  string in quotes (`'"2026-10-01"'`). `run_tool` passes strings through and only dumps
+  structured output.
+- **Independent tool calls arrive together — measured.** "30, 60 and 90 days from today"
+  came back as one reply with three `tool_use` blocks, all answered in one user message.
+  The dependent call (today's date) still took its own turn first.
 - **The web search tool runs server-side** — no local function, no `tool_result`, and it is
   billed on top of tokens.
 
 ## Files
 
 - `helpers.py` — client setup, message builders (string, block list, or a whole `Message`),
-  `chat()` returning the response, block readers
+  `chat()` returning the response, block readers, and `run_conversation()` — the capped loop
 - `tools.py` — the tool registry: `get_current_datetime`, `add_duration_to_datetime`, their
-  schemas, and `run_tool()` dispatch
+  schemas, `run_tool()` dispatch, and `run_tools()` answering every tool_use in a reply
 - `01_introducing_tool_use.py` — what tool use is, and what Claude does not do
 - `02_project_overview.py` — the reminder project, and why it needs a loop
 - `03_tool_functions.py` — the plain Python functions behind the tools
@@ -106,7 +113,7 @@ Claude is blocked waiting on that id and needs an answer either way.
 - `06_sending_tool_results.py` — running the function and returning a `tool_result`
 - `07_multi_turn_with_tools.py` — a question that needs two tools in sequence, walked turn
   by turn without a loop
-- `08_implementing_multiple_turns.py` — the loop
+- `08_implementing_multiple_turns.py` — the loop: a chain, parallel calls, and the cap
 - `09_using_multiple_tools.py` — several tools, routing by name
 - `10_fine_grained_tool_calling.py` — closer control over how tool calls are produced
 - `11_text_edit_tool.py` — an Anthropic-defined tool, implemented locally

@@ -29,8 +29,13 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent / "prompt-evaluation"))
 from usage_tracker import UsageTracker  # noqa: E402  (import must follow the path insert)
 
+# The loop at the bottom needs the dispatch. tools.py imports nothing from here, so this
+# cannot go circular.
+from tools import run_tools  # noqa: E402
+
 MODEL = "claude-sonnet-5"
 MAX_TOKENS = 8192
+MAX_TURNS = 10
 
 
 # ── setup ────────────────────────────────────────────────────────────────────────────
@@ -152,3 +157,39 @@ def wants_tool(response) -> bool:
     when it doesn't. Checking the text for hints instead is the usual wrong turn.
     """
     return response.stop_reason == "tool_use"
+
+
+# ── the tool loop ────────────────────────────────────────────────────────────────────
+
+def run_conversation(client: anthropic.Anthropic, messages: list, tools: list,
+                     tracker: UsageTracker | None = None, max_turns: int = MAX_TURNS,
+                     on_turn=None):
+    """Call Claude, run whatever tools it asks for, repeat until it stops asking.
+
+    `messages` is extended in place, so the caller's list ends up holding the whole
+    exchange. Returns the FINAL response — the course returns `messages`, but the caller
+    already has that list, and the final response is what they actually want to read.
+
+    on_turn(turn, response, results) is called after each turn, for anyone who wants to
+    watch the loop work; results is None on the last turn.
+    """
+    for turn in range(1, max_turns + 1):
+        response = chat(client, messages, tools=tools, tracker=tracker)
+        add_assistant_message(messages, response)
+
+        # The only exit that means "done". Not the text, not the block shapes.
+        if not wants_tool(response):
+            if on_turn:
+                on_turn(turn, response, None)
+            return response
+
+        results = run_tools(response)
+        add_user_message(messages, results)
+        if on_turn:
+            on_turn(turn, response, results)
+
+    # Not a return: the history now ends on a user tool_result, and handing back the last
+    # response would pass off a tool request as an answer.
+    raise RuntimeError(
+        f"Claude was still asking for tools when the {max_turns}-turn cap ran out"
+    )
