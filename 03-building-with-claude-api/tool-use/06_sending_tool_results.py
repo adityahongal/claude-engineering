@@ -72,13 +72,13 @@ tool_use_id. Tool results go back under the user role, which reads oddly the fir
 #         ↓
 #   assistant: the actual answer                            stop_reason="end_turn"
 #
-# Three rules the API enforces, and one it doesn't:
+# Four rules the API enforces:
 #
 #   * tool_use_id must match, exactly. It is the only link between request and result.
 #   * content must be a STRING. A dict or an int is a 400 — serialize it yourself.
 #   * the follow-up call must STILL pass tools=. The history refers to a tool, so the
 #     definition has to be there for it to resolve, even though no new call is expected.
-#   * (not enforced) every tool_use block needs its own tool_result, in the SAME user
+#   * every tool_use block needs its own tool_result, in the SAME user
 #     message. Miss one and the API rejects the turn.
 # ─────────────────────────────────────────────────────────────────────────────────────
 

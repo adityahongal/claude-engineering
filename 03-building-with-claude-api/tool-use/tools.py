@@ -17,7 +17,8 @@ Three things stay in sync here, by sitting in the same file:
     TOOL_FUNCTIONS                name string -> callable
 """
 
-from datetime import datetime
+import calendar
+from datetime import datetime, timedelta
 
 from anthropic.types import ToolParam
 
@@ -31,6 +32,42 @@ def get_current_datetime(date_format="%Y-%m-%d %H:%M:%S"):
         # part of the interface rather than a developer-only detail.
         raise ValueError("date_format cannot be empty")
     return datetime.now().strftime(date_format)
+
+
+# Claude is unreliable at calendar arithmetic — month lengths, leap years, what weekday a
+# date lands on. This does it exactly.
+DURATION_UNITS = ("seconds", "minutes", "hours", "days", "weeks", "months", "years")
+
+
+def add_duration_to_datetime(datetime_str, duration=0, unit="days",
+                             input_format="%Y-%m-%d %H:%M:%S"):
+    """Shift a datetime by `duration` units. Negative durations go backwards."""
+    if unit not in DURATION_UNITS:
+        raise ValueError(f"unit must be one of {', '.join(DURATION_UNITS)}; got {unit!r}")
+
+    try:
+        start = datetime.strptime(datetime_str, input_format)
+    except ValueError:
+        # The default input_format matches get_current_datetime's default output, so the
+        # two chain cleanly. When they don't, say exactly what failed to match.
+        raise ValueError(
+            f"datetime_str {datetime_str!r} does not match input_format {input_format!r}"
+        ) from None
+
+    if unit in ("months", "years"):
+        # timedelta has no months: they are not a fixed length. Step the month number and
+        # clamp the day, so Jan 31 + 1 month is Feb 28/29 rather than an error.
+        months = duration * 12 if unit == "years" else duration
+        month_index = start.month - 1 + months
+        year, month = start.year + month_index // 12, month_index % 12 + 1
+        day = min(start.day, calendar.monthrange(year, month)[1])
+        result = start.replace(year=year, month=month, day=day)
+    else:
+        result = start + timedelta(**{unit: duration})
+
+    # Weekday included because "what day is it" is usually the question — the one thing
+    # Claude would otherwise have to work out itself, and get wrong.
+    return result.strftime("%Y-%m-%d %H:%M:%S (%A)")
 
 
 # ── the schemas ──────────────────────────────────────────────────────────────────────
@@ -67,7 +104,53 @@ get_current_datetime_schema = ToolParam({
     },
 })
 
-ALL_SCHEMAS = [get_current_datetime_schema]
+add_duration_to_datetime_schema = ToolParam({
+    "name": add_duration_to_datetime.__name__,
+    "description": (
+        "Add a duration to a datetime and return the resulting datetime with its weekday. "
+        "Use this for ANY date arithmetic — 'in 3 weeks', '103 days from today', "
+        "'2 months before the deadline' — rather than calculating dates yourself. "
+        "To work relative to now, call get_current_datetime first and pass its result in. "
+        "Returns a string like '2026-09-01 14:30:00 (Tuesday)'."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "datetime_str": {
+                "type": "string",
+                "description": (
+                    "The starting datetime, written to match input_format, "
+                    "e.g. '2026-09-01 14:30:00'."
+                ),
+            },
+            "duration": {
+                "type": "integer",
+                "description": (
+                    "How many units to add. Negative values go back in time. Defaults to 0."
+                ),
+                "default": 0,
+            },
+            "unit": {
+                "type": "string",
+                "enum": list(DURATION_UNITS),
+                "description": "The unit of duration. Defaults to 'days'.",
+                "default": "days",
+            },
+            "input_format": {
+                "type": "string",
+                "description": (
+                    "The Python strftime format datetime_str is written in. Defaults to "
+                    "'%Y-%m-%d %H:%M:%S', which is get_current_datetime's default output; "
+                    "use '%Y-%m-%d' for a date with no time."
+                ),
+                "default": "%Y-%m-%d %H:%M:%S",
+            },
+        },
+        "required": ["datetime_str"],
+    },
+})
+
+ALL_SCHEMAS = [get_current_datetime_schema, add_duration_to_datetime_schema]
 
 
 # ── the dispatch ─────────────────────────────────────────────────────────────────────
@@ -76,6 +159,7 @@ ALL_SCHEMAS = [get_current_datetime_schema]
 # dict is the whole mechanism.
 TOOL_FUNCTIONS = {
     get_current_datetime.__name__: get_current_datetime,
+    add_duration_to_datetime.__name__: add_duration_to_datetime,
 }
 
 

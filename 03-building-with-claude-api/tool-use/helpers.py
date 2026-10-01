@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import anthropic
+from anthropic.types import Message
 from dotenv import load_dotenv
 
 # Reuse the tracker rather than keeping a third copy of it. Same one-line path insert as the
@@ -75,20 +76,29 @@ def run(main_fn) -> None:
 # time. In tool use that list grows fast: one question can become user -> assistant
 # (tool_use) -> user (tool_result) -> assistant, and all of it has to be sent back.
 
-def add_user_message(messages: list, content) -> None:
-    """`content` is a string for ordinary turns, or a LIST of blocks when returning
-    tool results — tool_result blocks are sent under the "user" role, which reads oddly
-    the first time. The role means "not the model", not "typed by a human".
-    """
-    messages.append({"role": "user", "content": content})
+# Both builders accept three shapes: a string, a list of blocks, or a whole Message. The
+# Message case is what lets the tool loop write `add_assistant_message(messages, response)`
+# without remembering to reach for `.content` — forget it and the request fails, because a
+# Message object is not a valid content value.
+
+def _content_of(message):
+    return message.content if isinstance(message, Message) else message
 
 
-def add_assistant_message(messages: list, content) -> None:
-    """`content` is a string, or `response.content` verbatim when the reply contained a
-    tool_use block. Claude's request to call a tool has to go back into the history
-    unchanged, or the tool_result that follows refers to nothing.
+def add_user_message(messages: list, message) -> None:
+    """A string for ordinary turns, or a LIST of blocks when returning tool results —
+    tool_result blocks are sent under the "user" role, which reads oddly the first time.
+    The role means "not the model", not "typed by a human".
     """
-    messages.append({"role": "assistant", "content": content})
+    messages.append({"role": "user", "content": _content_of(message)})
+
+
+def add_assistant_message(messages: list, message) -> None:
+    """A string, or Claude's reply verbatim — the Message itself or its `.content`. A
+    request to call a tool has to go back into the history unchanged, or the tool_result
+    that follows refers to nothing.
+    """
+    messages.append({"role": "assistant", "content": _content_of(message)})
 
 
 # ── calling Claude ───────────────────────────────────────────────────────────────────
@@ -118,7 +128,11 @@ def chat(client: anthropic.Anthropic, messages: list, tools=anthropic.omit,
 # ── reading a response ───────────────────────────────────────────────────────────────
 
 def text_from(response) -> str:
-    """Just the text blocks, joined. A response can hold text and tool_use together."""
+    """Just the text blocks, joined. A response can hold text and tool_use together.
+
+    Joined with "" where the course uses "\\n": consecutive text blocks are often one
+    sentence split in pieces (citations do this), and a newline would break it apart.
+    """
     return "".join(block.text for block in response.content if block.type == "text")
 
 

@@ -1,7 +1,7 @@
 """Project overview.
 
 What the module builds, and which tools it needs. Notes lesson — the code starts in
-tool_functions.py.
+03_tool_functions.py.
 """
 
 # We're going to build a practical project that teaches Claude how to set reminders for future dates

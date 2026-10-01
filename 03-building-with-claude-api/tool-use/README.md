@@ -84,6 +84,9 @@ Claude is blocked waiting on that id and needs an answer either way.
 - **A tool loop multiplies cost.** Every turn resends the entire history, tool results
   included, so a four-step loop is not four cheap calls — it is four increasingly expensive
   ones. Watch the tracker.
+- **The course's loop slide files Claude's reply under the wrong role.** It shows
+  `add_user_message(messages, response)` right after `chat()`; that has to be
+  `add_assistant_message`. The written summary has it right.
 - **Guard against a runaway loop.** Nothing stops Claude asking for tools indefinitely.
   Cap the number of iterations.
 - **The web search tool runs server-side** — no local function, no `tool_result`, and it is
@@ -91,15 +94,18 @@ Claude is blocked waiting on that id and needs an answer either way.
 
 ## Files
 
-- `helpers.py` — client setup, message builders, `chat()` returning the response, block readers
-- `tools.py` — the tool registry: functions, their schemas, and `run_tool()` dispatch
+- `helpers.py` — client setup, message builders (string, block list, or a whole `Message`),
+  `chat()` returning the response, block readers
+- `tools.py` — the tool registry: `get_current_datetime`, `add_duration_to_datetime`, their
+  schemas, and `run_tool()` dispatch
 - `01_introducing_tool_use.py` — what tool use is, and what Claude does not do
 - `02_project_overview.py` — the reminder project, and why it needs a loop
 - `03_tool_functions.py` — the plain Python functions behind the tools
 - `04_tool_schemas.py` — describing those functions to Claude
 - `05_handling_message_blocks.py` — reading `tool_use` out of `response.content`
 - `06_sending_tool_results.py` — running the function and returning a `tool_result`
-- `07_multi_turn_with_tools.py` — keeping the history intact across a tool call
+- `07_multi_turn_with_tools.py` — a question that needs two tools in sequence, walked turn
+  by turn without a loop
 - `08_implementing_multiple_turns.py` — the loop
 - `09_using_multiple_tools.py` — several tools, routing by name
 - `10_fine_grained_tool_calling.py` — closer control over how tool calls are produced
