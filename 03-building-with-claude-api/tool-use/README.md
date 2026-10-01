@@ -96,6 +96,16 @@ Claude is blocked waiting on that id and needs an answer either way.
 - **Independent tool calls arrive together — measured.** "30, 60 and 90 days from today"
   came back as one reply with three `tool_use` blocks, all answered in one user message.
   The dependent call (today's date) still took its own turn first.
+- **Adding a tool is four edits that nothing cross-checks.** Function, schema, `ALL_SCHEMAS`,
+  `TOOL_FUNCTIONS` — miss one and it fails only when Claude calls that tool.
+  `check_registry()` catches every one of those before the first API call.
+- **A tool description is guidance, not a constraint — measured.** `set_reminder` says to use
+  `add_duration_to_datetime` for anything relative. For "a week from this Thursday" Claude
+  called `add_duration_to_datetime` with `duration: 0` purely to learn today's weekday,
+  then added the 7 days itself. Right answer, wrong path; for a +7 it got away with it.
+- **Claude fills gaps you didn't ask it to.** "177 days after Jan 1st, 2050" names no time;
+  Claude set the reminder for 09:00 on its own and only mentioned it after the fact. A tool
+  that acts on the world should probably ask, or say what it assumed.
 - **The web search tool runs server-side** — no local function, no `tool_result`, and it is
   billed on top of tokens.
 
@@ -103,8 +113,8 @@ Claude is blocked waiting on that id and needs an answer either way.
 
 - `helpers.py` — client setup, message builders (string, block list, or a whole `Message`),
   `chat()` returning the response, block readers, and `run_conversation()` — the capped loop
-- `tools.py` — the tool registry: `get_current_datetime`, `add_duration_to_datetime`, their
-  schemas, `run_tool()` dispatch, and `run_tools()` answering every tool_use in a reply
+- `tools.py` — the tool registry: `get_current_datetime`, `add_duration_to_datetime`,
+  `set_reminder`, their schemas, `run_tool()` / `run_tools()` dispatch, and `check_registry()`
 - `01_introducing_tool_use.py` — what tool use is, and what Claude does not do
 - `02_project_overview.py` — the reminder project, and why it needs a loop
 - `03_tool_functions.py` — the plain Python functions behind the tools
@@ -114,7 +124,8 @@ Claude is blocked waiting on that id and needs an answer either way.
 - `07_multi_turn_with_tools.py` — a question that needs two tools in sequence, walked turn
   by turn without a loop
 - `08_implementing_multiple_turns.py` — the loop: a chain, parallel calls, and the cap
-- `09_using_multiple_tools.py` — several tools, routing by name
+- `09_using_multiple_tools.py` — the third tool, the full reminder chain, and checking the
+  side effect really happened
 - `10_fine_grained_tool_calling.py` — closer control over how tool calls are produced
 - `11_text_edit_tool.py` — an Anthropic-defined tool, implemented locally
 - `12_web_search_tool.py` — a server-side tool

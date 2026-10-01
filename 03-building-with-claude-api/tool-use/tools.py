@@ -71,6 +71,37 @@ def add_duration_to_datetime(datetime_str, duration=0, unit="days",
     return result.strftime("%Y-%m-%d %H:%M:%S (%A)")
 
 
+# The one tool that DOES something rather than computing an answer — the part Claude cannot
+# do at all. A list stands in for a real reminder store; the point is the side effect, so
+# the lesson can check afterwards that a reminder exists, not just that Claude said so.
+REMINDERS = []
+
+
+def set_reminder(content, timestamp):
+    """Store a reminder. Returns a dict, so it exercises the json.dumps path in run_tool."""
+    if not content or not content.strip():
+        raise ValueError("content cannot be empty")
+
+    try:
+        # fromisoformat takes '2050-06-27', '2050-06-27 09:00:00' and '2050-06-27T09:00:00'.
+        # The split drops the ' (Monday)' add_duration_to_datetime appends, so its output
+        # chains straight in instead of failing on a suffix our own tool added.
+        when = datetime.fromisoformat(timestamp.split(" (")[0])
+    except ValueError:
+        raise ValueError(
+            f"timestamp {timestamp!r} is not ISO 8601, e.g. '2050-06-27 09:00:00'"
+        ) from None
+
+    if when < datetime.now():
+        # Exactly the error Claude can act on: recompute the date and try again.
+        raise ValueError(f"timestamp {timestamp!r} is in the past")
+
+    reminder = {"id": len(REMINDERS) + 1, "content": content.strip(),
+                "timestamp": when.strftime("%Y-%m-%d %H:%M:%S (%A)")}
+    REMINDERS.append(reminder)
+    return {"status": "set", **reminder}
+
+
 # ── the schemas ──────────────────────────────────────────────────────────────────────
 
 # The description is not documentation — it is the entire basis on which Claude decides
@@ -151,7 +182,40 @@ add_duration_to_datetime_schema = ToolParam({
     },
 })
 
-ALL_SCHEMAS = [get_current_datetime_schema, add_duration_to_datetime_schema]
+set_reminder_schema = ToolParam({
+    "name": set_reminder.__name__,
+    "description": (
+        "Set a reminder that will notify the user at a specific date and time. "
+        "Only call this once you have an exact timestamp — for anything relative "
+        "('next Friday', '177 days after Jan 1st'), work it out with get_current_datetime "
+        "and add_duration_to_datetime first rather than calculating it yourself. "
+        "Fails if the timestamp is in the past. Returns the stored reminder as JSON."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "content": {
+                "type": "string",
+                "description": (
+                    "What to remind the user about, written as the reminder should read, "
+                    "e.g. 'Doctor's appointment'."
+                ),
+            },
+            "timestamp": {
+                "type": "string",
+                "description": (
+                    "When to send the reminder, in ISO 8601: '2050-06-27 09:00:00', or "
+                    "'2050-06-27' for midnight. add_duration_to_datetime output can be "
+                    "passed in exactly as returned."
+                ),
+            },
+        },
+        "required": ["content", "timestamp"],
+    },
+})
+
+ALL_SCHEMAS = [get_current_datetime_schema, add_duration_to_datetime_schema,
+               set_reminder_schema]
 
 
 # ── the dispatch ─────────────────────────────────────────────────────────────────────
@@ -161,7 +225,41 @@ ALL_SCHEMAS = [get_current_datetime_schema, add_duration_to_datetime_schema]
 TOOL_FUNCTIONS = {
     get_current_datetime.__name__: get_current_datetime,
     add_duration_to_datetime.__name__: add_duration_to_datetime,
+    set_reminder.__name__: set_reminder,
 }
+
+
+def check_registry() -> list:
+    """Every way the four steps of adding a tool can drift apart, as a list of problems.
+
+    Adding a tool means touching four places — function, schema, ALL_SCHEMAS,
+    TOOL_FUNCTIONS — and nothing fails until Claude calls the one that was missed. This
+    makes "forgot one" fail before any API call instead.
+    """
+    import inspect
+
+    problems = []
+    schema_names = {schema["name"] for schema in ALL_SCHEMAS}
+    for name in schema_names - TOOL_FUNCTIONS.keys():
+        problems.append(f"{name}: has a schema but no entry in TOOL_FUNCTIONS")
+    for name in TOOL_FUNCTIONS.keys() - schema_names:
+        problems.append(f"{name}: in TOOL_FUNCTIONS but its schema is not in ALL_SCHEMAS")
+
+    for schema in ALL_SCHEMAS:
+        function = TOOL_FUNCTIONS.get(schema["name"])
+        if function is None:
+            continue
+        params = inspect.signature(function).parameters
+        props = set(schema["input_schema"]["properties"])
+        required = set(schema["input_schema"].get("required", []))
+        no_default = {n for n, p in params.items() if p.default is inspect.Parameter.empty}
+        if set(params) != props:
+            problems.append(f"{schema['name']}: parameters {sorted(params)} "
+                            f"!= schema properties {sorted(props)}")
+        if required != no_default:
+            problems.append(f"{schema['name']}: required {sorted(required)} "
+                            f"!= no-default parameters {sorted(no_default)}")
+    return problems
 
 
 def run_tool(block) -> dict:
