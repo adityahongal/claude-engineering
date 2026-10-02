@@ -163,7 +163,7 @@ def wants_tool(response) -> bool:
 
 def run_conversation(client: anthropic.Anthropic, messages: list, tools: list,
                      tracker: UsageTracker | None = None, max_turns: int = MAX_TURNS,
-                     on_turn=None):
+                     on_turn=None, functions: dict | None = None):
     """Call Claude, run whatever tools it asks for, repeat until it stops asking.
 
     `messages` is extended in place, so the caller's list ends up holding the whole
@@ -172,6 +172,8 @@ def run_conversation(client: anthropic.Anthropic, messages: list, tools: list,
 
     on_turn(turn, response, results) is called after each turn, for anyone who wants to
     watch the loop work; results is None on the last turn.
+
+    `functions` maps tool names to callables when they are not the tools.py registry.
     """
     for turn in range(1, max_turns + 1):
         response = chat(client, messages, tools=tools, tracker=tracker)
@@ -183,7 +185,7 @@ def run_conversation(client: anthropic.Anthropic, messages: list, tools: list,
                 on_turn(turn, response, None)
             return response
 
-        results = run_tools(response)
+        results = run_tools(response, functions)
         add_user_message(messages, results)
         if on_turn:
             on_turn(turn, response, results)

@@ -125,13 +125,37 @@ Claude is blocked waiting on that id and needs an answer either way.
   and catch `ValueError` around the stream for JSON it cannot parse at all.
 - **Don't ask Claude for a number your code can compute.** `meta.word_count` was wrong on
   three of four runs (161 words reported as 169, 171 as 178, 174 as 172). Count it yourself.
-- **The web search tool runs server-side** — no local function, no `tool_result`, and it is
-  billed on top of tokens.
+- **The text editor's version, name and commands all changed — course drift.** The course's
+  `text_editor_20250124` / `str_replace_editor` is now `text_editor_20250728` /
+  `str_replace_based_edit_tool`. The name is what arrives in `block.name`, so dispatch keyed
+  on the old one matches nothing. `undo_edit` is gone: four commands remain (`view`,
+  `create`, `str_replace`, `insert`), and undo is yours to build from backups.
+- **The text editor's `path` is untrusted model output.** Claude decides where your code
+  writes. Resolve the path first (collapsing `..` and symlinks), then check it is inside the
+  sandbox — a string-prefix check on the raw path is not enough.
+- **Claude verifies its own edits — measured.** Asked for two changes, it viewed the folder,
+  viewed the file, made both in one `str_replace`, then viewed the file again before
+  answering. Five calls for a two-line job; the re-check is turn 4.
+- **The web search version changed, and the new one drops citations — measured.** The course's
+  `web_search_20250305` is now `web_search_20260209` on Sonnet 5, which filters results in
+  server-side code first (results come back as an encrypted `code_execution_tool_result`).
+  Same question on both: the old version returned 4 citations; the new one split its text
+  where citations go and returned empty lists. Inline citations need the old version.
+  Tokens did not clearly favour the new one either: 25,013 old vs 22,256 and 34,691 new,
+  one question each — noisy, but no saving to bank on for a small query.
+- **The web search tool runs server-side** — no local function, no `tool_result`, no 08
+  loop; one call holds the query, results and answer. The early stop is `pause_turn`: resend
+  the conversation unchanged, no "continue" message. A failed search does not raise — its
+  `content` is an error object instead of a list. Billed per search on top of tokens, and
+  the results count as input tokens.
+- **`allowed_domains` includes subdomains.** `python.org` also admitted `test.python.org`, the
+  staging site.
 
 ## Files
 
 - `helpers.py` — client setup, message builders (string, block list, or a whole `Message`),
-  `chat()` returning the response, block readers, and `run_conversation()` — the capped loop
+  `chat()` returning the response, block readers, and `run_conversation()` — the capped loop,
+  which takes a `functions` map for tools outside the registry
 - `tools.py` — the tool registry: `get_current_datetime`, `add_duration_to_datetime`,
   `set_reminder`, their schemas, `run_tool()` / `run_tools()` dispatch, and `check_registry()`
 - `01_introducing_tool_use.py` — what tool use is, and what Claude does not do
@@ -147,8 +171,10 @@ Claude is blocked waiting on that id and needs an answer either way.
   side effect really happened
 - `10_fine_grained_tool_calling.py` — buffered vs eager tool-input streaming, timed side by
   side, and validating an input nobody else checked
-- `11_text_edit_tool.py` — an Anthropic-defined tool, implemented locally
-- `12_web_search_tool.py` — a server-side tool
+- `11_text_edit_tool.py` — the Anthropic-defined text editor, implemented in a sandbox
+  behind a path guard, with a behaviour check on Claude's edit
+- `12_web_search_tool.py` — the server-side search tool, both versions side by side:
+  sources, inline citations, and what each costs
 
 Lesson files are numbered so the folder reads in course order. The two unnumbered modules
 are shared code, and they have to be: **a module name cannot start with a digit**, so

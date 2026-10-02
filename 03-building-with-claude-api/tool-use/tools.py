@@ -262,14 +262,17 @@ def check_registry() -> list:
     return problems
 
 
-def run_tool(block) -> dict:
+def run_tool(block, functions: dict | None = None) -> dict:
     """Execute one tool_use block and return the tool_result block to send back.
 
     Every exit path returns a tool_result. Claude is blocked waiting on this id, so "the
     function raised" still has to come back as an answer — one flagged is_error=True.
     Letting the exception escape leaves a tool_use that nothing ever replied to.
+
+    `functions` overrides the registry — for tools with no schema here, like the
+    Anthropic-defined text editor in 11, which still needs a local function.
     """
-    function = TOOL_FUNCTIONS.get(block.name)
+    function = (TOOL_FUNCTIONS if functions is None else functions).get(block.name)
 
     if function is None:
         # Claude can ask for a tool that does not exist. Saying so is more useful than
@@ -294,13 +297,14 @@ def run_tool(block) -> dict:
     return tool_result(block.id, content, is_error=False)
 
 
-def run_tools(response) -> list:
+def run_tools(response, functions: dict | None = None) -> list:
     """A tool_result for every tool_use block in the response, in order.
 
     The list is the whole content of the next user message. Claude can ask for several
     tools in one reply, and each one needs its own answer in that same message.
     """
-    return [run_tool(block) for block in response.content if block.type == "tool_use"]
+    return [run_tool(block, functions)
+            for block in response.content if block.type == "tool_use"]
 
 
 def tool_result(tool_use_id: str, content: str, is_error: bool = False) -> dict:
