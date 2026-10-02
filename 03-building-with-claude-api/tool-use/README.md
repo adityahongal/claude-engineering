@@ -106,6 +106,25 @@ Claude is blocked waiting on that id and needs an answer either way.
 - **Claude fills gaps you didn't ask it to.** "177 days after Jan 1st, 2050" names no time;
   Claude set the reminder for 09:00 on its own and only mentioned it after the fact. A tool
   that acts on the world should probably ask, or say what it assumed.
+- **Fine-grained tool calling moved out of beta and onto the tool — course drift.** The
+  course passes `fine_grained=True`, which sends the beta header
+  `fine-grained-tool-streaming-2025-05-14`. Now it is `"eager_input_streaming": True` on each
+  tool definition, with the ordinary `client.messages.stream(...)` and no header. The
+  `input_json` events are unchanged.
+- **Buffering is real, and large — measured.** The same request, streamed both ways: buffered
+  went 5.17s with nothing, then the whole input in a burst (0 of 1,854 chars by halfway).
+  Eager never went quiet for more than 0.18s (879 of 1,715 chars by halfway).
+- **`snapshot` is not a progress bar.** The SDK parses it in jiter's partial mode, which drops
+  an unfinished string until its closing quote — so a streaming abstract is invisible in
+  `snapshot` even with eager streaming on — and keeps a half-arrived number as a smaller,
+  wrong one (`"word_count": 1` while `12` arrives). Live progress means accumulating
+  `partial_json` yourself.
+- **Eager streaming moves validation to you.** The API stops validating the input, and the
+  SDK's tolerant parser returns a truncated object rather than raising. Check
+  `stop_reason == "max_tokens"` first, validate against the schema before running anything,
+  and catch `ValueError` around the stream for JSON it cannot parse at all.
+- **Don't ask Claude for a number your code can compute.** `meta.word_count` was wrong on
+  three of four runs (161 words reported as 169, 171 as 178, 174 as 172). Count it yourself.
 - **The web search tool runs server-side** — no local function, no `tool_result`, and it is
   billed on top of tokens.
 
@@ -126,7 +145,8 @@ Claude is blocked waiting on that id and needs an answer either way.
 - `08_implementing_multiple_turns.py` — the loop: a chain, parallel calls, and the cap
 - `09_using_multiple_tools.py` — the third tool, the full reminder chain, and checking the
   side effect really happened
-- `10_fine_grained_tool_calling.py` — closer control over how tool calls are produced
+- `10_fine_grained_tool_calling.py` — buffered vs eager tool-input streaming, timed side by
+  side, and validating an input nobody else checked
 - `11_text_edit_tool.py` — an Anthropic-defined tool, implemented locally
 - `12_web_search_tool.py` — a server-side tool
 
