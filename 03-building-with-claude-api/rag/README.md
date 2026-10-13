@@ -23,15 +23,33 @@ of that pipeline, or a better way to do the "find" step.
 - **The naive sentence regex splits on abbreviations.** `Dr. Okafor` and `e.g. on` both end
   a "sentence" — and each fake sentence counts against the per-chunk limit.
 
+- **The course's `generate_embedding()` defaults `input_type` to `"query"`.** Chunks are
+  documents, not questions. The same text as query vs document scored cosine 0.958 — a
+  different vector. `embeddings.py` makes every call name its input type.
+- **Embed in batches — on a free Voyage account it is not optional.** With no payment method
+  the limit is 3 requests and 10K tokens a minute, and the SDK does not retry by default.
+  The course's one-call-per-chunk loop failed on the fourth chunk; one batched call embeds
+  all six. `embeddings.py` also turns on retries with backoff.
+- **"Each number ranges from -1 to +1" undersells it.** Voyage vectors have length exactly
+  1.0 over 1,024 numbers, so each is about ±0.1 — and the dot product of two of them is
+  their cosine similarity.
+- **Embeddings are only nearly deterministic — measured.** Batched vs alone differs by up to
+  ~7e-4 per number, and batched results shifted between runs; cosine between variants
+  0.99997. Never compare vectors with `==`.
+- **A MongoDB Atlas key (`al-...`) needs no endpoint setting.** The `voyageai` SDK routes it to
+  `ai.mongodb.com` by its prefix.
+
 ## Files
 
 - `chunking.py` — the three chunkers, fixed, shared by every lesson from 02 on
+- `embeddings.py` — the Voyage client, batched `embed()`, `generate_embedding()`, `cosine()`
 - `report.md` — the sample document every lesson chunks and searches; "bug" means two
   different things in two of its sections, on purpose
 - `01_introducing_rag.py` — what RAG is, and why not just send the whole document
 - `02_text_chunking_strategies.py` — size, sentence and section chunking compared on one
   document: sizes, mid-word cuts, and chunks that straddle sections
-- `03_text_embeddings.py` — text to vectors, so similar meaning becomes nearby vectors
+- `03_text_embeddings.py` — what a vector looks like, batching under a 3-a-minute limit, and
+  query vs document input types
 - `04_full_rag_flow.py` — the pipeline end to end, before any code
 - `05_implementing_rag_flow.py` — the pipeline as working code: index, search, prompt
 - `06_bm25_lexical_search.py` — ranking by the words a chunk actually contains
