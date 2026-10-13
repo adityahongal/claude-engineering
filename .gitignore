@@ -16,3 +16,6 @@ package-lock.json
 # dataset.json IS committed (it's the stable baseline); these are derived from it.
 answers.json
 report_*.html
+
+# Build metadata from the editable install of claude_course
+*.egg-info/

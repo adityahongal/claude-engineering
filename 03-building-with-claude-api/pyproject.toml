@@ -1,0 +1,18 @@
+# Makes claude_course/ an installable package, so every module folder can
+# `from claude_course import ...` with no sys.path edits. Installed in editable mode by the
+# root requirements.txt (`-e ./03-building-with-claude-api`): edits to the package take
+# effect immediately, with no reinstall.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-course"
+version = "0.1.0"
+description = "Shared plumbing for the Building with the Claude API course modules"
+requires-python = ">=3.10"
+dependencies = ["anthropic>=0.116", "python-dotenv>=1.0"]
+
+[tool.setuptools]
+packages = ["claude_course"]

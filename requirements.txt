@@ -1,3 +1,7 @@
 anthropic>=0.116
 python-dotenv>=1.0
 voyageai>=0.5
+
+# Shared course plumbing (03-building-with-claude-api/claude_course), editable: changes
+# to the package apply without reinstalling. Paths are relative to the repo root.
+-e ./03-building-with-claude-api

@@ -53,6 +53,18 @@ One folder per course module, filled in as each is worked through.
 | `mcp/` | MCP clients and servers, tools, resources, prompts |
 | `agents-workflows/` | Parallelization, chaining, routing, agents vs workflows |
 
+### Shared code: `claude_course`
+
+`claude_course/` is an installable package holding the plumbing every module needs —
+client setup, the error-handling `run()`, message builders, `chat()` / `chat_text()` /
+`ask()`, the tool loop, and a usage tracker that also counts prompt-caching tokens. The
+root `requirements.txt` installs it in editable mode, so any folder can
+`from claude_course import ...`, and edits apply without reinstalling.
+
+It starts with `claude-features/`. `prompt-engineering/` and `tool-use/` keep their own
+`helpers.py`, unchanged — their lessons and recorded results were written against them —
+and `prompt-evaluation/usage_tracker.py` stays where those modules import it from.
+
 `.env.example` is the key template — copy it to `.env`, which is never committed.
 Claude Code is covered separately in [`../claude-code-101/`](../claude-code-101/).
 
