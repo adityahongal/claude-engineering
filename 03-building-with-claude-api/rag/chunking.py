@@ -22,10 +22,15 @@ import re
 from pathlib import Path
 
 REPORT = Path(__file__).parent / "report.md"
+INCIDENTS = Path(__file__).parent / "incidents.md"   # 06 onwards: the lookup-by-ID test
 
 
 def load_report() -> str:
     return REPORT.read_text()
+
+
+def load_incidents() -> str:
+    return INCIDENTS.read_text()
 
 
 def chunk_by_char(text: str, chunk_size: int = 150, chunk_overlap: int = 20) -> list:

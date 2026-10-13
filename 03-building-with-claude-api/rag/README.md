@@ -48,6 +48,26 @@ of that pipeline, or a better way to do the "find" step.
   Engineering first (0.365) and Medical Research — the stomach bug — second (0.577). With
   `k=2`, the wrong-context chunk from 02 lands in the prompt anyway; the prompt tells Claude
   to use only what answers the question.
+- **BM25 does not ignore common words — measured.** It down-weights words by how common
+  they are *in this collection*. In 11 chunks, "what" and "happened" each appear once, as
+  rare as "011", so "What happened with INC-2026-Q3-011?" ranked the incident log's intro
+  ("each entry records what happened") above the incident. A short question-word stopword
+  list fixed it.
+- **An ID is not one token.** The tokenizer splits `INC-2026-Q3-011` into `inc`, `2026`,
+  `q3`, `011`. BM25 still finds it, by its rarest fragment: the other three are shared with
+  other IDs.
+- **Semantic search found the exact ID too — against the course's claim.** voyage-3-large
+  ranked INC-2026-Q3-011 first (distance 0.573), though by a margin of only 0.049. BM25's
+  real blind spot showed on the other question: "lose money because of a software mistake"
+  shares no words with the invoice-error chunk, and BM25 never matched it.
+- **Hybrid search made one answer worse — measured.** On that meaning question, semantic
+  alone ranked the invoice error first. Fused with BM25 (which had no match), it fell to
+  5th at k=60 — Software Engineering, mediocre in both lists, won instead. At k=1, Outlook
+  (BM25 1st, semantic 11th of 11) won. RRF rewards agreement; an index that is lost drags
+  the fused result down. Mitigations: weight the indexes, fuse only each one's top few, or
+  drop results below a score threshold.
+- **Don't rank non-matches.** A BM25 document with no query term scores 0; ranking those in
+  arbitrary order hands them RRF points. `BM25Index.search` leaves them out.
 - **A MongoDB Atlas key (`al-...`) needs no endpoint setting.** The `voyageai` SDK routes it to
   `ai.mongodb.com` by its prefix.
 
@@ -57,6 +77,10 @@ of that pipeline, or a better way to do the "find" step.
 - `embeddings.py` — the Voyage client, batched `embed()`, `generate_embedding()`, `cosine()`
 - `vector_index.py` — the course's `VectorIndex`, written out: vectors stored with their
   text, searched by cosine distance
+- `bm25_index.py` — the course's `BM25Index`, written out: Okapi BM25 with an optional
+  stopword list, same interface as `VectorIndex`
+- `incidents.md` — a second document, an incident log with near-identical IDs, for the
+  lookup-by-ID test from 06 on
 - `report.md` — the sample document every lesson chunks and searches; "bug" means two
   different things in two of its sections, on purpose
 - `01_introducing_rag.py` — what RAG is, and why not just send the whole document
@@ -67,8 +91,10 @@ of that pipeline, or a better way to do the "find" step.
 - `04_full_rag_flow.py` — the course's two-number example recomputed, with no API call
 - `05_implementing_rag_flow.py` — the pipeline as working code: index, search, margins, and
   the prompt it would send
-- `06_bm25_lexical_search.py` — ranking by the words a chunk actually contains
-- `07_multi_index_rag_pipeline.py` — semantic and lexical search together, rankings merged
+- `06_bm25_lexical_search.py` — BM25 with and without stopwords against semantic search, on an
+  exact-ID question and a meaning-only question
+- `07_multi_index_rag_pipeline.py` — the `Retriever` and reciprocal rank fusion, and the
+  question where fusing made retrieval worse
 
 Lesson files are numbered so the folder reads in course order. As in `tool-use/`, a
 numbered file can be run but never imported, so anything two lessons share goes in a
